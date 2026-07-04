@@ -16,10 +16,21 @@ app/ios/Pods/
 app/ios/.symlinks/
 app/ios/Flutter/ephemeral/
 
+# Node (web + server) — never commit dependencies or build output
+**/node_modules/
+web/.next/
+web/out/
+server/dist/
+web/build/web/
+
+# Flutter web build (preview)
+app/build/web/
+
 # Supabase local
 supabase/.branches
 supabase/.temp
 
 # Env / secrets (never commit real keys)
-*.env
-.env
+**/.env
+**/.env.*
+!**/.env.example

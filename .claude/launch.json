@@ -1,0 +1,35 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-app",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "cd /Users/rahulsingh/Downloads/geoselfie-Atd/web && npm run dev -- -p 3001"
+      ],
+      "port": 3001
+    },
+    {
+      "name": "web-preview-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8000",
+        "--directory",
+        "/Users/rahulsingh/Downloads/geoselfie-Atd/app/build/web"
+      ],
+      "port": 8000
+    },
+    {
+      "name": "web-preview-dev",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "cd /Users/rahulsingh/Downloads/geoselfie-Atd/app && /opt/homebrew/share/flutter/bin/flutter run -d web-server --web-port 8080 -t lib/preview/main_preview.dart"
+      ],
+      "port": 8080
+    }
+  ]
+}
