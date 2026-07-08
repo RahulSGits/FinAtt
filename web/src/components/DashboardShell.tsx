@@ -39,13 +39,12 @@ export default function DashboardShell({
   }
 
   const roleLabel =
-    requiredKind === "admin"
-      ? session.role === "hr"
+    session.role === "admin"
+      ? "Developer Console"
+      : session.role === "hr"
         ? "HR Console"
-        : session.role === "manager"
-          ? "Manager Console"
-          : "Admin Console"
-      : "Employee Portal";
+        : "Employee Portal";
+  void requiredKind;
 
   return (
     <div className="flex min-h-screen">
@@ -97,7 +96,10 @@ export default function DashboardShell({
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="glass sticky top-0 z-10 flex items-center gap-4 border-b border-white/5 px-5 py-3">
+        <header
+          className="sticky top-0 z-30 flex items-center gap-4 border-b border-white/10 px-5 py-3"
+          style={{ background: "rgba(9,10,20,0.92)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           <div className="flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-xs font-bold">
               {company.slug}
@@ -133,7 +135,10 @@ export default function DashboardShell({
         </header>
 
         {/* Mobile nav */}
-        <div className="flex gap-1 overflow-x-auto border-b border-white/5 px-3 py-2 md:hidden">
+        <div
+          className="sticky top-[57px] z-20 flex gap-1 overflow-x-auto border-b border-white/10 px-3 py-2 md:hidden"
+          style={{ background: "rgba(9,10,20,0.92)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           {nav.map((item) => (
             <button
               key={item.key}

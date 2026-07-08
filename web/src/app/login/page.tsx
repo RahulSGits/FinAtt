@@ -11,20 +11,18 @@ import TiltCard from "@/components/TiltCard";
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
-  const [companyId, setCompanyId] = useState("ACME");
-  const [email, setEmail] = useState("admin@acme.io");
+  const [companyId, setCompanyId] = useState("GEO");
+  const [email, setEmail] = useState("rahul@geoselfie.app");
   const [password, setPassword] = useState("demo1234");
   const [role, setRole] = useState<Role>("admin");
 
-  function go(r: Role, mail: string, name: string) {
-    login({ role: r, email: mail, name });
-    router.push(r === "employee" ? "/employee" : "/admin");
-  }
+  const routeFor = (r: Role) => (r === "admin" ? "/admin" : r === "hr" ? "/hr" : "/employee");
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const acc = demoAccounts.find((a) => a.role === role)!;
-    go(role, email || acc.email, role === "employee" ? "Asha Nair" : "Sara Khan");
+    login({ role, email: email || acc.email, name: acc.name });
+    router.push(routeFor(role));
   }
 
   return (

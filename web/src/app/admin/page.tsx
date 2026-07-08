@@ -4,24 +4,21 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
-  Users,
-  MapPin,
-  Clock,
-  CalendarCheck,
+  Building2,
+  CreditCard,
   Activity,
-  UserCheck,
-  UserX,
-  Timer,
-  Plane,
+  User,
+  IndianRupee,
+  Wallet,
   TrendingUp,
-  Check,
-  X,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Clock,
 } from "lucide-react";
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   Cell,
   Pie,
   PieChart,
@@ -30,40 +27,44 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useRouter } from "next/navigation";
 import DashboardShell, { type NavItem } from "@/components/DashboardShell";
-import { StatCard, Panel, Avatar, StatusBadge, Pill } from "@/components/ui";
+import Profile from "@/components/Profile";
+import { StatCard, Panel, Pill } from "@/components/ui";
+import { useAuth } from "@/lib/auth";
+import { demoAccounts } from "@/lib/mock";
+import { Eye, UserRound } from "lucide-react";
 import {
-  kpis,
-  employees,
-  sites,
-  shifts,
-  leaves as seedLeaves,
-  trend,
-  deptSplit,
-  hoursByDept,
+  INR,
+  PRICE,
+  tenants,
+  activeTenants,
+  mrr,
+  payments,
+  revenueTrend,
+  planSplit,
+  activityFeed,
 } from "@/lib/mock";
 
 const nav: NavItem[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
-  { key: "live", label: "Live Monitor", icon: Activity },
-  { key: "employees", label: "Employees", icon: Users },
-  { key: "sites", label: "Sites", icon: MapPin },
-  { key: "shifts", label: "Shifts", icon: Clock },
-  { key: "leave", label: "Leave", icon: CalendarCheck },
+  { key: "companies", label: "Companies", icon: Building2 },
+  { key: "payments", label: "Payments", icon: CreditCard },
+  { key: "activity", label: "Activity", icon: Activity },
+  { key: "profile", label: "Profile", icon: User },
 ];
 
-const PIE = ["#6366f1", "#22d3ee", "#a855f7", "#34d399", "#fbbf24", "#f87171"];
+const PIE = ["#34d399", "#fbbf24", "#f87171"];
 
 export default function AdminPage() {
   const [active, setActive] = useState("overview");
   return (
     <DashboardShell nav={nav} active={active} onSelect={setActive} requiredKind="admin">
       {active === "overview" && <Overview />}
-      {active === "live" && <Live />}
-      {active === "employees" && <EmployeesView />}
-      {active === "sites" && <SitesView />}
-      {active === "shifts" && <ShiftsView />}
-      {active === "leave" && <LeaveView />}
+      {active === "companies" && <Companies />}
+      {active === "payments" && <Payments />}
+      {active === "activity" && <ActivityView />}
+      {active === "profile" && <Profile />}
     </DashboardShell>
   );
 }
@@ -77,253 +78,180 @@ function Header({ title, sub }: { title: string; sub: string }) {
   );
 }
 
+function DemoControls() {
+  const router = useRouter();
+  const { login } = useAuth();
+  function openAs(role: "hr" | "employee") {
+    const acc = demoAccounts.find((a) => a.role === role)!;
+    login({ role, email: acc.email, name: acc.name });
+    router.push(role === "hr" ? "/hr" : "/employee");
+  }
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+      <div className="mr-auto flex items-center gap-2 text-sm">
+        <Eye size={16} className="text-indigo-300" />
+        <span className="muted">Preview a customer dashboard (opens as demo user)</span>
+      </div>
+      <button onClick={() => openAs("hr")} className="flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400">
+        <Building2 size={16} /> Open HR demo
+      </button>
+      <button onClick={() => openAs("employee")} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10">
+        <UserRound size={16} /> Open Employee demo
+      </button>
+    </div>
+  );
+}
+
+const statusTone: Record<string, string> = { active: "#34d399", overdue: "#f87171", trial: "#fbbf24", paid: "#34d399", failed: "#f87171", pending: "#fbbf24" };
+
 function Overview() {
+  const thisMonth = payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+  const overdue = tenants.filter((t) => t.status === "overdue").length;
   return (
     <div>
-      <Header title="Company Overview" sub="Real-time attendance across all sites · July 2026" />
+      <Header title="Platform Billing" sub={`geoSelfie SaaS · ${INR(PRICE)}/company · month of July 2026`} />
+
+      <DemoControls />
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Present today" value={kpis.present} icon={<UserCheck size={18} />} tone="#34d399" sub="of 1,284 employees" delay={0} />
-        <StatCard label="Absent" value={kpis.absent} icon={<UserX size={18} />} tone="#f87171" sub="7.5% of workforce" delay={0.05} />
-        <StatCard label="Late arrivals" value={kpis.late} icon={<Timer size={18} />} tone="#fbbf24" sub="grace exceeded" delay={0.1} />
-        <StatCard label="On leave" value={kpis.onLeave} icon={<Plane size={18} />} tone="#60a5fa" sub="approved today" delay={0.15} />
+        <StatCard label="Monthly recurring revenue" value={mrr} icon={<IndianRupee size={18} />} tone="#34d399" sub={`${activeTenants.length} active × ${INR(PRICE)}`} />
+        <StatCard label="Collected this month" value={thisMonth} icon={<Wallet size={18} />} tone="#22d3ee" sub="paid invoices" delay={0.05} />
+        <StatCard label="Total companies" value={tenants.length} icon={<Building2 size={18} />} tone="#6366f1" sub="tenants on platform" delay={0.1} />
+        <StatCard label="Overdue accounts" value={overdue} icon={<AlertTriangle size={18} />} tone="#f87171" sub="need follow-up" delay={0.15} />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Panel title="Attendance trend (7 days)" className="lg:col-span-2">
+        <Panel title="Revenue trend (₹)" className="lg:col-span-2">
           <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={trend} margin={{ left: -20, right: 8 }}>
+            <AreaChart data={revenueTrend} margin={{ left: -10, right: 8 }}>
               <defs>
-                <linearGradient id="gP" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.6} />
-                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gA" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f87171" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="#f87171" stopOpacity={0} />
+                <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#34d399" stopOpacity={0.55} />
+                  <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="day" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Area type="monotone" dataKey="present" stroke="#818cf8" fill="url(#gP)" strokeWidth={2} />
-              <Area type="monotone" dataKey="absent" stroke="#f87171" fill="url(#gA)" strokeWidth={2} />
+              <XAxis dataKey="month" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} width={54} tickFormatter={(v) => `₹${v / 1000}k`} />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => INR(v)} />
+              <Area type="monotone" dataKey="revenue" stroke="#34d399" fill="url(#rev)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </Panel>
-
-        <Panel title="Headcount by department">
-          <ResponsiveContainer width="100%" height={260}>
+        <Panel title="Subscription status">
+          <ResponsiveContainer width="100%" height={200}>
             <PieChart>
-              <Pie data={deptSplit} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={3}>
-                {deptSplit.map((_, i) => (
+              <Pie data={planSplit} dataKey="value" nameKey="name" innerRadius={50} outerRadius={82} paddingAngle={3}>
+                {planSplit.map((_, i) => (
                   <Cell key={i} fill={PIE[i % PIE.length]} stroke="transparent" />
                 ))}
               </Pie>
               <Tooltip contentStyle={tooltipStyle} />
             </PieChart>
           </ResponsiveContainer>
-          <div className="mt-2 grid grid-cols-2 gap-1.5">
-            {deptSplit.map((d, i) => (
-              <div key={d.name} className="flex items-center gap-2 text-xs">
-                <span className="h-2 w-2 rounded-full" style={{ background: PIE[i % PIE.length] }} />
-                <span className="muted">{d.name}</span>
+          <div className="mt-2 space-y-1.5">
+            {planSplit.map((d, i) => (
+              <div key={d.name} className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: PIE[i] }} />{d.name}</span>
+                <span className="muted">{d.value}</span>
               </div>
             ))}
           </div>
         </Panel>
       </div>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Panel title="Avg hours by department" className="lg:col-span-2">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={hoursByDept} margin={{ left: -20, right: 8 }}>
-              <XAxis dataKey="dept" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-              <Bar dataKey="hours" radius={[6, 6, 0, 0]}>
-                {hoursByDept.map((_, i) => (
-                  <Cell key={i} fill={PIE[i % PIE.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </Panel>
-        <div className="grid gap-4">
-          <StatCard label="Attendance rate" value={kpis.attendanceRate} decimals={1} suffix="%" icon={<TrendingUp size={18} />} tone="#22d3ee" sub="vs 84.2% last month" />
-          <StatCard label="Overtime hours" value={kpis.overtimeHours} icon={<Timer size={18} />} tone="#a855f7" sub="this week" />
-        </div>
-      </div>
     </div>
   );
 }
 
-function Live() {
+function Companies() {
   return (
     <div>
-      <Header title="Live Monitor" sub="Who's on-site right now" />
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {employees.map((e, i) => (
-          <motion.div
-            key={e.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-            className="glass lift rounded-2xl p-4"
-          >
-            <div className="flex items-center gap-3">
-              <Avatar name={e.name} hue={e.avatarHue} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{e.name}</div>
-                <div className="muted truncate text-xs">{e.designation} · {e.site}</div>
-              </div>
-              <StatusBadge status={e.today} />
-            </div>
-            <div className="muted mt-3 flex items-center justify-between text-xs">
-              <span>{e.checkIn ? `In ${e.checkIn}` : "—"}</span>
-              <span className="flex items-center gap-1.5">
-                {e.today === "present" && (
-                  <span className="relative inline-block h-2 w-2 rounded-full bg-emerald-400 pulse-dot text-emerald-400" />
-                )}
-                {e.shift} shift
-              </span>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function EmployeesView() {
-  return (
-    <div>
-      <Header title="Employees" sub={`${employees.length} shown · ${kpis.headcount} total`} />
+      <Header title="Companies" sub={`Every tenant subscribed at ${INR(PRICE)}/month`} />
       <Panel>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="muted border-b border-white/5 text-left text-xs">
-                <th className="pb-3 font-medium">Employee</th>
-                <th className="pb-3 font-medium">Department</th>
-                <th className="pb-3 font-medium">Site / Shift</th>
-                <th className="pb-3 font-medium">Today</th>
-                <th className="pb-3 text-right font-medium">Month %</th>
-                <th className="pb-3 text-right font-medium">Face</th>
+                <th className="pb-3 font-medium">Company</th>
+                <th className="pb-3 font-medium">Owner</th>
+                <th className="pb-3 font-medium">Seats used</th>
+                <th className="pb-3 font-medium">Charge</th>
+                <th className="pb-3 font-medium">Next billing</th>
+                <th className="pb-3 text-right font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
-              {employees.map((e) => (
-                <tr key={e.id} className="border-b border-white/5 last:border-0">
-                  <td className="py-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar name={e.name} hue={e.avatarHue} />
-                      <div>
-                        <div className="font-medium">{e.name}</div>
-                        <div className="muted text-xs">{e.code}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="muted py-3">{e.department}</td>
-                  <td className="muted py-3">{e.site} · {e.shift}</td>
-                  <td className="py-3"><StatusBadge status={e.today} /></td>
-                  <td className="py-3 text-right font-medium">{e.attendancePct}%</td>
-                  <td className="py-3 text-right">
-                    {e.faceEnrolled ? <Pill tone="#34d399">Enrolled</Pill> : <Pill tone="#fbbf24">Pending</Pill>}
-                  </td>
+              {tenants.map((t) => (
+                <tr key={t.id} className="border-b border-white/5 last:border-0">
+                  <td className="py-3 font-medium">{t.name}</td>
+                  <td className="muted py-3">{t.owner}</td>
+                  <td className="py-3">{t.activeUsers}/{t.seats}</td>
+                  <td className="py-3">{INR(t.monthly)}/mo</td>
+                  <td className="muted py-3">{t.nextBilling}</td>
+                  <td className="py-3 text-right"><Pill tone={statusTone[t.status]}>{t.status}</Pill></td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="muted mt-4 flex items-center gap-2 text-sm">
+          <TrendingUp size={15} className="text-emerald-300" />
+          {activeTenants.length} paying companies · {INR(mrr)} MRR · {INR(mrr * 12)} ARR
         </div>
       </Panel>
     </div>
   );
 }
 
-function SitesView() {
+function Payments() {
+  const icon = (s: string) =>
+    s === "paid" ? <CheckCircle2 size={16} className="text-emerald-300" /> : s === "failed" ? <XCircle size={16} className="text-rose-300" /> : <Clock size={16} className="text-amber-300" />;
   return (
     <div>
-      <Header title="Sites & Geofences" sub="Admin-configurable radius per location" />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {sites.map((s, i) => (
-          <motion.div key={s.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="glass lift rounded-2xl p-5">
-            <div className="flex items-center justify-between">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-500/15 text-cyan-300"><MapPin size={20} /></span>
-              <Pill tone="#22d3ee">{s.radius} m radius</Pill>
-            </div>
-            <h3 className="mt-3 font-semibold">{s.name}</h3>
-            <div className="muted mt-1 text-xs">
-              {s.lat.toFixed(4)}, {s.lng.toFixed(4)}
-            </div>
-            <div className="mt-3 flex items-center justify-between text-sm">
-              <span className="muted">Assigned</span>
-              <span className="font-medium">{s.employees} employees</span>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ShiftsView() {
-  return (
-    <div>
-      <Header title="Shift Management" sub="Fixed, flexible, night & rotational shifts" />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {shifts.map((s, i) => (
-          <motion.div key={s.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="glass lift rounded-2xl p-5">
-            <div className="flex items-center justify-between">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-500/15 text-violet-300"><Clock size={20} /></span>
-              <Pill tone="#a855f7">{s.type}</Pill>
-            </div>
-            <h3 className="mt-3 font-semibold">{s.name}</h3>
-            <div className="muted mt-1 text-sm">{s.start} – {s.end}</div>
-            <div className="muted mt-3 space-y-1 text-xs">
-              <div className="flex justify-between"><span>Grace</span><span className="text-slate-200">{s.grace} min</span></div>
-              <div className="flex justify-between"><span>Min presence</span><span className="text-slate-200">{s.minPresence}%</span></div>
-              <div className="flex justify-between"><span>Assigned</span><span className="text-slate-200">{s.employees}</span></div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function LeaveView() {
-  const [rows, setRows] = useState(seedLeaves);
-  function decide(id: string, status: "approved" | "rejected") {
-    setRows((r) => r.map((x) => (x.id === id ? { ...x, status } : x)));
-  }
-  return (
-    <div>
-      <Header title="Leave Approvals" sub="Approve or reject employee time-off" />
+      <Header title="Payments" sub="Latest subscription invoices" />
       <div className="grid gap-3">
-        {rows.map((l) => (
-          <div key={l.id} className="glass flex flex-wrap items-center gap-4 rounded-2xl p-4">
-            <div className="min-w-40 flex-1">
-              <div className="font-medium">{l.name}</div>
-              <div className="muted text-xs">{l.type} · {l.reason}</div>
+        {payments.map((p) => (
+          <div key={p.id} className="glass flex items-center gap-4 rounded-2xl p-4">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/5">{icon(p.status)}</span>
+            <div className="flex-1">
+              <div className="font-medium">{p.company}</div>
+              <div className="muted text-xs">{p.date} · {p.method}</div>
             </div>
-            <div className="muted text-sm">{l.from} → {l.to} · {l.days}d</div>
-            {l.status === "pending" ? (
-              <div className="flex gap-2">
-                <button onClick={() => decide(l.id, "rejected")} className="flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-rose-300 hover:bg-white/5">
-                  <X size={14} /> Reject
-                </button>
-                <button onClick={() => decide(l.id, "approved")} className="flex items-center gap-1 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-sm text-emerald-300 hover:bg-emerald-500/30">
-                  <Check size={14} /> Approve
-                </button>
-              </div>
-            ) : (
-              <Pill tone={l.status === "approved" ? "#34d399" : "#f87171"}>
-                {l.status}
-              </Pill>
-            )}
+            <div className="text-right">
+              <div className="font-semibold">{INR(p.amount)}</div>
+              <Pill tone={statusTone[p.status]}>{p.status}</Pill>
+            </div>
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ActivityView() {
+  return (
+    <div>
+      <Header title="Activity" sub="What companies are doing on the platform" />
+      <Panel>
+        <div className="space-y-4">
+          {activityFeed.map((a, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.06 }}
+              className="flex items-center gap-3"
+            >
+              <span className="relative grid h-8 w-8 place-items-center rounded-full bg-indigo-500/15 text-indigo-300">
+                <Activity size={15} />
+              </span>
+              <div className="flex-1 text-sm">
+                <span className="font-medium">{a.who}</span> <span className="muted">{a.what}</span>
+              </div>
+              <span className="muted text-xs">{a.when}</span>
+            </motion.div>
+          ))}
+        </div>
+      </Panel>
     </div>
   );
 }
