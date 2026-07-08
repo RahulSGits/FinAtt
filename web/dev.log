@@ -1,0 +1,56 @@
+
+> web@0.1.0 dev
+> next dev --turbo -p 3005
+
+▲ Next.js 16.2.10 (Turbopack)
+- Local:         http://localhost:3005
+- Network:       http://10.220.172.51:3005
+✓ Ready in 393ms
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /Users/rahulsingh/Downloads/geoselfie-Atd/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * /Users/rahulsingh/Downloads/geoselfie-Atd/web/package-lock.json
+
+
+○ Compiling / ...
+ GET / 200 in 4.0s (next.js: 3.7s, application-code: 260ms)
+ GET / 200 in 184ms (next.js: 54ms, application-code: 131ms)
+⚠ Blocked cross-origin request to Next.js dev resource /_next/webpack-hmr from "127.0.0.1".
+Cross-origin access to Next.js dev resources is blocked by default for safety.
+
+To allow this host in development, add it to "allowedDevOrigins" in next.config.js and restart the dev server:
+
+// next.config.js
+module.exports = {
+  allowedDevOrigins: ['127.0.0.1'],
+}
+
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+○ Compiling /login ...
+ GET /login 200 in 1319ms (next.js: 720ms, application-code: 599ms)
+ GET /login 200 in 199ms (next.js: 56ms, application-code: 143ms)
+ GET /login 200 in 333ms (next.js: 46ms, application-code: 286ms)
+ GET /login 200 in 424ms (next.js: 93ms, application-code: 331ms)
+ GET /login 200 in 237ms (next.js: 33ms, application-code: 204ms)
+ GET /login? 200 in 455ms (next.js: 86ms, application-code: 368ms)
+ GET /login 200 in 819ms (next.js: 116ms, application-code: 703ms)
+ GET / 200 in 499ms (next.js: 201ms, application-code: 297ms)
+○ Compiling /admin ...
+ GET /login? 200 in 803ms (next.js: 40ms, application-code: 763ms)
+ GET /admin 200 in 12.1s (next.js: 11.1s, application-code: 945ms)
+ GET /admin 200 in 62ms (next.js: 16ms, application-code: 47ms)
+ GET / 200 in 84ms (next.js: 29ms, application-code: 55ms)
+ GET /login 200 in 45ms (next.js: 9ms, application-code: 36ms)
+[browser] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior
+ GET /admin 200 in 39ms (next.js: 14ms, application-code: 24ms)
+ GET /hr 200 in 1113ms (next.js: 1069ms, application-code: 44ms)
+ GET /login 200 in 47ms (next.js: 9ms, application-code: 38ms)
+ GET /login 200 in 16ms (next.js: 1724µs, application-code: 15ms)
+ GET /employee 200 in 709ms (next.js: 647ms, application-code: 61ms)
+ GET /login 200 in 46ms (next.js: 5ms, application-code: 41ms)
+ GET /login 200 in 17ms (next.js: 2ms, application-code: 15ms)
+ GET /login 200 in 38ms (next.js: 4ms, application-code: 34ms)
+ GET /login 200 in 16ms (next.js: 1562µs, application-code: 14ms)
+ GET / 200 in 53ms (next.js: 5ms, application-code: 48ms)

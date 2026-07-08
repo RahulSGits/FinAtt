@@ -31,6 +31,7 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -38,6 +39,14 @@ body {
   color: var(--text);
   font-family: var(--font-sans), system-ui, sans-serif;
   overflow-x: hidden;
+  /* Safe-area padding for notched devices */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Responsive typography */
+h1 {
+  font-size: clamp(1.35rem, 4vw, 1.75rem);
 }
 
 /* Ambient aurora background */
@@ -136,3 +145,71 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
 .muted { color: var(--muted); }
+
+/* ── Responsive table wrapper ─────────────────────────────────────────── */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.table-wrap::-webkit-scrollbar { height: 6px; }
+.table-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+/* ── Touch target helpers (min 44px for mobile a11y) ──────────────────── */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Mobile-specific improvements ─────────────────────────────────────── */
+@media (max-width: 639px) {
+  .glass { backdrop-filter: blur(8px); }
+  .grid-overlay { display: none; }
+}
+
+/* ── Notification dropdown ────────────────────────────────────────────── */
+.notif-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 340px;
+  max-height: 400px;
+  overflow-y: auto;
+  z-index: 50;
+}
+@media (max-width: 400px) {
+  .notif-dropdown {
+    width: calc(100vw - 32px);
+    right: -8px;
+  }
+}
+
+/* ── Inline-edit input ────────────────────────────────────────────────── */
+.inline-edit {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: 8px;
+  padding: 4px 8px;
+  color: var(--text);
+  outline: none;
+  font-size: inherit;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+.inline-edit:focus {
+  border-color: rgba(99, 102, 241, 0.7);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+/* ── Toast animation ──────────────────────────────────────────────────── */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.toast-enter {
+  animation: toast-in 0.25s ease-out;
+}
