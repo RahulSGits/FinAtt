@@ -20,6 +20,7 @@ import {
   UserRound,
   Save,
   Sparkles,
+  Pencil,
 } from "lucide-react";
 import {
   Area,
@@ -49,15 +50,11 @@ import { useNotifications } from "@/lib/notifications";
 import {
   INR,
   PRICE,
-  tenants,
-  activeTenants,
-  mrr,
   payments,
-  revenueTrend,
-  planSplit,
   activityFeed,
   demoAccounts,
 } from "@/lib/mock";
+import { useTenants } from "@/lib/tenants";
 
 const nav: NavItem[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
@@ -151,6 +148,19 @@ const statusTone: Record<string, string> = {
 };
 
 function Overview() {
+  const { tenants } = useTenants();
+  const activeTenants = tenants.filter((t) => t.status === "active");
+  const mrr = activeTenants.reduce((s, t) => s + t.monthly, 0);
+
+  const revenueTrend = [
+    { month: "Feb", revenue: 3998 },
+    { month: "Mar", revenue: 5997 },
+    { month: "Apr", revenue: 7996 },
+    { month: "May", revenue: 9995 },
+    { month: "Jun", revenue: 9995 },
+    { month: "Jul", revenue: mrr },
+  ];
+
   const thisMonth = payments
     .filter((p) => p.status === "paid")
     .reduce((s, p) => s + p.amount, 0);
@@ -159,7 +169,7 @@ function Overview() {
     <div>
       <Header
         title="Platform Billing"
-        sub={`geoSelfie SaaS · ${INR(PRICE)}/company · month of July 2026`}
+        sub={`geoSelfie SaaS · Base ${INR(PRICE)} per 100 seats · month of July 2026`}
       />
 
       <DemoControls />
@@ -170,7 +180,7 @@ function Overview() {
           value={mrr}
           icon={<IndianRupee size={18} />}
           tone="#34d399"
-          sub={`${activeTenants.length} active × ${INR(PRICE)}`}
+          sub={`${activeTenants.length} active companies`}
         />
         <StatCard
           label="Collected this month"
@@ -241,14 +251,18 @@ function Overview() {
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie
-                data={planSplit}
+                data={[
+                  { name: "Active", value: activeTenants.length },
+                  { name: "Trial", value: tenants.filter((t) => t.status === "trial").length },
+                  { name: "Overdue", value: tenants.filter((t) => t.status === "overdue").length },
+                ]}
                 dataKey="value"
                 nameKey="name"
                 innerRadius={50}
                 outerRadius={82}
                 paddingAngle={3}
               >
-                {planSplit.map((_, i) => (
+                {[1, 2, 3].map((_, i) => (
                   <Cell
                     key={i}
                     fill={PIE[i % PIE.length]}
@@ -260,7 +274,11 @@ function Overview() {
             </PieChart>
           </ResponsiveContainer>
           <div className="mt-2 space-y-1.5">
-            {planSplit.map((d, i) => (
+            {[
+              { name: "Active", value: activeTenants.length },
+              { name: "Trial", value: tenants.filter((t) => t.status === "trial").length },
+              { name: "Overdue", value: tenants.filter((t) => t.status === "overdue").length },
+            ].map((d, i) => (
               <div
                 key={d.name}
                 className="flex items-center justify-between text-xs"
@@ -283,11 +301,31 @@ function Overview() {
 }
 
 function Companies() {
+  const { tenants, updateTenant } = useTenants();
+  const { plans } = useSubscriptionPlans();
+  const activeTenants = tenants.filter((t) => t.status === "active");
+  const mrr = activeTenants.reduce((s, t) => s + t.monthly, 0);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editSeats, setEditSeats] = useState<number>(300);
+
+  function startEdit(t: { id: string; seats: number; activeUsers: number }) {
+    setEditingId(t.id);
+    setEditSeats(t.seats);
+  }
+
+  function saveEdit(id: string) {
+    const blocks = Math.max(1, Math.ceil(editSeats / 100));
+    const newMonthly = blocks * plans.basePrice;
+    updateTenant(id, { seats: editSeats, monthly: newMonthly });
+    setEditingId(null);
+  }
+
   return (
     <div>
       <Header
         title="Companies"
-        sub={`Every tenant subscribed at ${INR(PRICE)}/month`}
+        sub={`Charge ${INR(plans.basePrice)}/month for every 100 seats`}
       />
       <Panel>
         <div className="table-wrap">
@@ -306,12 +344,33 @@ function Companies() {
               {tenants.map((t) => (
                 <tr
                   key={t.id}
-                  className="border-b border-white/5 last:border-0"
+                  className="border-b border-white/5 last:border-0 hover:bg-white/5"
                 >
                   <td className="py-3 font-medium">{t.name}</td>
                   <td className="muted py-3">{t.owner}</td>
                   <td className="py-3">
-                    {t.activeUsers}/{t.seats}
+                    {editingId === t.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={editSeats}
+                          onChange={(e) => setEditSeats(Number(e.target.value))}
+                          className="w-20 rounded-lg border border-white/10 bg-white/10 px-2 py-1 text-sm outline-none focus:border-indigo-500"
+                          min={1}
+                        />
+                        <button onClick={() => saveEdit(t.id)} className="text-indigo-400 hover:text-indigo-300">
+                          <Save size={16} />
+                        </button>
+                        <button onClick={() => setEditingId(null)} className="text-slate-400 hover:text-slate-300">
+                          <XCircle size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 group cursor-pointer" onClick={() => startEdit(t)}>
+                        <span>{t.activeUsers}/{t.seats}</span>
+                        <Pencil size={14} className="opacity-0 transition-opacity group-hover:opacity-100 text-indigo-400" />
+                      </div>
+                    )}
                   </td>
                   <td className="py-3">{INR(t.monthly)}/mo</td>
                   <td className="muted py-3">{t.nextBilling}</td>
@@ -435,8 +494,8 @@ function PlansEditor() {
               <div className="mt-3 text-3xl font-bold">{INR(total)}</div>
               <div className="muted mt-1 text-sm">
                 {tier.months === 1
-                  ? "billed every month"
-                  : `${INR(pm)}/mo · billed every ${tier.months} months`}
+                  ? "per 100 seats, billed every month"
+                  : `${INR(pm)}/mo per 100 seats · billed every ${tier.months} months`}
               </div>
               {saved > 0 && (
                 <div className="mt-2 text-xs text-emerald-300">

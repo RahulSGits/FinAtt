@@ -67,6 +67,7 @@ import {
   type Status,
   type PayrollRow,
 } from "@/lib/mock";
+import { useTenants } from "@/lib/tenants";
 import dynamic from "next/dynamic";
 
 const DynamicMap = dynamic(() => import("@/components/GeofenceMap"), {
@@ -638,12 +639,71 @@ function Labeled({
 const dow = ["M", "T", "W", "T", "F", "S", "S"];
 
 function Attendance({ people }: { people: Employee[] }) {
+  const [deptFilter, setDeptFilter] = useState("all");
+  const [monthFilter, setMonthFilter] = useState("07"); // July
+  const [yearFilter, setYearFilter] = useState("2026");
+  const [dayFilter, setDayFilter] = useState("all");
+
+  const departments = useMemo(() => ["all", ...Array.from(new Set(people.map((p) => p.department)))], [people]);
+
+  const filteredPeople = useMemo(() => {
+    return people.filter(p => {
+      if (deptFilter !== "all" && p.department !== deptFilter) return false;
+      return true;
+    });
+  }, [people, deptFilter]);
+
   return (
     <div>
       <Header
         title="Attendance"
         sub="Weekly presence & monthly rate per member"
       />
+      <div className="mb-4 flex flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <Filter size={14} className="text-slate-400" />
+          <select
+            value={deptFilter}
+            onChange={(e) => setDeptFilter(e.target.value)}
+            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm outline-none"
+          >
+            {departments.map((d) => (
+              <option key={d} value={d}>
+                {d === "all" ? "All Departments" : d}
+              </option>
+            ))}
+          </select>
+        </div>
+        <select
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+          className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm outline-none"
+        >
+          <option value="06">June</option>
+          <option value="07">July</option>
+          <option value="08">August</option>
+        </select>
+        <select
+          value={yearFilter}
+          onChange={(e) => setYearFilter(e.target.value)}
+          className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm outline-none"
+        >
+          <option value="2025">2025</option>
+          <option value="2026">2026</option>
+        </select>
+        <select
+          value={dayFilter}
+          onChange={(e) => setDayFilter(e.target.value)}
+          className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm outline-none"
+        >
+          <option value="all">All Days</option>
+          <option value="mon">Monday</option>
+          <option value="tue">Tuesday</option>
+          <option value="wed">Wednesday</option>
+          <option value="thu">Thursday</option>
+          <option value="fri">Friday</option>
+        </select>
+      </div>
       <Panel>
         <div className="space-y-1">
           <div className="muted grid grid-cols-[1.6fr_auto_1fr] items-center gap-4 border-b border-white/5 pb-2 text-xs">
@@ -657,7 +717,7 @@ function Attendance({ people }: { people: Employee[] }) {
             </span>
             <span className="text-right">This month</span>
           </div>
-          {people.map((e) => (
+          {filteredPeople.map((e) => (
             <div
               key={e.id}
               className="grid grid-cols-[1.6fr_auto_1fr] items-center gap-4 py-2.5"
@@ -1138,28 +1198,31 @@ function BroadcastView() {
 
 function Billing() {
   const { plans } = useSubscriptionPlans();
+  const { tenants } = useTenants();
+  const tenant = tenants.find(t => t.id === "t1") || tenants[0];
   const [selectedTier, setSelectedTier] = useState<string>("monthly");
 
   const currentTier = plans.tiers.find((t) => t.id === selectedTier) || plans.tiers[0];
-  const amount = tierTotal(plans.basePrice, currentTier);
+  const blocks = Math.max(1, Math.ceil(tenant.seats / 100));
+  const amount = tierTotal(plans.basePrice * blocks, currentTier);
 
   const invoices = [
     {
       id: "INV-0007",
       date: "01 Jul 2026",
-      amount: plans.basePrice,
+      amount: plans.basePrice * blocks,
       status: "paid",
     },
     {
       id: "INV-0006",
       date: "01 Jun 2026",
-      amount: plans.basePrice,
+      amount: plans.basePrice * blocks,
       status: "paid",
     },
     {
       id: "INV-0005",
       date: "01 May 2026",
-      amount: plans.basePrice,
+      amount: plans.basePrice * blocks,
       status: "paid",
     },
   ];
@@ -1168,7 +1231,7 @@ function Billing() {
     <div>
       <Header
         title="Subscription & Billing"
-        sub="geoSelfie Pro · manage your plan"
+        sub={`geoSelfie Pro · manage your plan (${tenant.seats} seats)`}
       />
 
       {/* Plan update notification */}
@@ -1187,9 +1250,9 @@ function Billing() {
         <Panel title="Choose your plan" className="lg:col-span-2">
           <div className="grid gap-3 sm:grid-cols-3">
             {plans.tiers.map((tier) => {
-              const total = tierTotal(plans.basePrice, tier);
-              const pm = tierPerMonth(plans.basePrice, tier);
-              const saved = tierSavings(plans.basePrice, tier);
+              const total = tierTotal(plans.basePrice * blocks, tier);
+              const pm = tierPerMonth(plans.basePrice * blocks, tier);
+              const saved = tierSavings(plans.basePrice * blocks, tier);
               return (
                 <button
                   key={tier.id}
@@ -1234,8 +1297,36 @@ function Billing() {
                 </span>
               </div>
             </div>
-            <button className="rounded-xl bg-indigo-500 px-4 py-2.5 font-medium text-white hover:bg-indigo-400">
-              {selectedTier === "monthly" ? "Keep monthly" : "Switch & save"}
+            <button 
+              onClick={() => {
+                const script = document.createElement("script");
+                script.src = "https://checkout.razorpay.com/v1/checkout.js";
+                script.onload = () => {
+                  const options = {
+                    key: "rzp_test_mock_key", // mock key
+                    amount: amount * 100, // paise
+                    currency: "INR",
+                    name: "geoSelfie SaaS",
+                    description: `${currentTier.label} Subscription`,
+                    handler: function (response: any) {
+                      alert(`Payment Successful! Payment ID: ${response.razorpay_payment_id}`);
+                    },
+                    prefill: {
+                      name: "geoSelfie HR",
+                      email: "hr@geoselfie.app"
+                    },
+                    theme: {
+                      color: "#6366f1"
+                    }
+                  };
+                  const rzp = new (window as any).Razorpay(options);
+                  rzp.open();
+                };
+                document.body.appendChild(script);
+              }}
+              className="rounded-xl bg-indigo-500 px-4 py-2.5 font-medium text-white hover:bg-indigo-400"
+            >
+              Pay with Razorpay
             </button>
           </div>
         </Panel>
@@ -1328,7 +1419,7 @@ const tooltipStyle = {
 // ── Geofence ─────────────────────────────────────────────────────────────
 
 function GeofenceView() {
-  const { config, updateConfig } = useGeofenceSettings();
+  const { config, updateConfig, history } = useGeofenceSettings();
   const [lat, setLat] = useState(config.lat.toString());
   const [lng, setLng] = useState(config.lng.toString());
   const [radius, setRadius] = useState(config.radius.toString());
@@ -1484,6 +1575,40 @@ function GeofenceView() {
           </div>
         </div>
       </Panel>
+      
+      <div className="mt-6">
+        <Header title="Geofence History" sub="Log of location boundary changes" />
+        <Panel>
+          {history && history.length > 0 ? (
+            <div className="table-wrap">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="muted border-b border-white/5 text-left text-xs">
+                    <th className="pb-3 font-medium">Timestamp</th>
+                    <th className="pb-3 font-medium">Location Name / Address</th>
+                    <th className="pb-3 font-medium">Latitude</th>
+                    <th className="pb-3 font-medium">Longitude</th>
+                    <th className="pb-3 font-medium text-right">Radius (m)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((record) => (
+                    <tr key={record.id} className="border-b border-white/5 last:border-0 hover:bg-white/5">
+                      <td className="py-3 text-xs muted">{new Date(record.timestamp).toLocaleString()}</td>
+                      <td className="py-3 font-medium">{record.address || "N/A"}</td>
+                      <td className="py-3 font-mono text-xs">{record.lat}</td>
+                      <td className="py-3 font-mono text-xs">{record.lng}</td>
+                      <td className="py-3 text-right">{record.radius}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-4 text-center text-sm muted">No history available yet.</div>
+          )}
+        </Panel>
+      </div>
     </div>
   );
 }

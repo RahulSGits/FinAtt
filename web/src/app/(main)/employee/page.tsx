@@ -33,9 +33,9 @@ import {
   myMonth,
   statusColor,
   mySalarySlips,
+  company,
   INR,
   to12h,
-  type Status,
 } from "@/lib/mock";
 
 const nav: NavItem[] = [
@@ -83,8 +83,8 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      setGeoError("Geolocation not supported");
-      return;
+      const t = setTimeout(() => setGeoError("Geolocation not supported"), 0);
+      return () => clearTimeout(t);
     }
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
@@ -98,7 +98,7 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
         setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setGeoError(null);
       },
-      (err) => {
+      () => {
         setGeoError("Location access denied.");
       },
       { enableHighAccuracy: true }

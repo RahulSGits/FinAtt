@@ -20,8 +20,16 @@ const STORAGE_KEY = "gs_geofence";
  * Hook to manage geofence configuration.
  * Uses localStorage and cross-tab synchronization.
  */
+export interface GeofenceHistoryRecord extends GeofenceConfig {
+  id: string;
+  timestamp: string;
+}
+
+const HISTORY_KEY = "gs_geofence_history";
+
 export function useGeofenceSettings() {
   const [config, setConfig] = useState<GeofenceConfig>(DEFAULT_CONFIG);
+  const [history, setHistory] = useState<GeofenceHistoryRecord[]>([]);
 
   useEffect(() => {
     function load() {
@@ -33,11 +41,19 @@ export function useGeofenceSettings() {
           console.error("Failed to parse geofence config", e);
         }
       }
+      const storedHistory = localStorage.getItem(HISTORY_KEY);
+      if (storedHistory) {
+        try {
+          setHistory(JSON.parse(storedHistory));
+        } catch (e) {
+          console.error("Failed to parse geofence history", e);
+        }
+      }
     }
     load();
 
     const handler = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) load();
+      if (e.key === STORAGE_KEY || e.key === HISTORY_KEY) load();
     };
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
@@ -48,6 +64,24 @@ export function useGeofenceSettings() {
     
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     setConfig(updated);
+
+    const record: GeofenceHistoryRecord = {
+      ...updated,
+      id: Math.random().toString(36).substring(7),
+      timestamp: new Date().toISOString()
+    };
+
+    setHistory((prev) => {
+      const newHistory = [record, ...prev];
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: HISTORY_KEY,
+          newValue: JSON.stringify(newHistory),
+        })
+      );
+      return newHistory;
+    });
     
     window.dispatchEvent(
       new StorageEvent("storage", {
@@ -57,7 +91,7 @@ export function useGeofenceSettings() {
     );
   };
 
-  return { config, updateConfig };
+  return { config, updateConfig, history };
 }
 
 /**

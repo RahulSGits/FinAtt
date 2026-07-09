@@ -134,12 +134,12 @@ export const workMode = (e: Employee): "office" | "remote" =>
   e.shift === "Flexible" || e.department === "Engineering" ? "remote" : "office";
 
 export const tenants: Tenant[] = [
-  { id: "t1", name: "geoSelfie (Acme HR)", owner: "Priya Menon", seats: 50, activeUsers: 42, monthly: PRICE, status: "active", since: "Jan 2026", nextBilling: "01 Aug" },
-  { id: "t2", name: "Nimbus Retail", owner: "K. Rao", seats: 120, activeUsers: 98, monthly: PRICE, status: "active", since: "Feb 2026", nextBilling: "05 Aug" },
-  { id: "t3", name: "Orbit Logistics", owner: "S. Fernandes", seats: 80, activeUsers: 61, monthly: PRICE, status: "overdue", since: "Nov 2025", nextBilling: "overdue" },
-  { id: "t4", name: "BlueLeaf Cafe", owner: "M. Shaikh", seats: 25, activeUsers: 19, monthly: PRICE, status: "active", since: "Mar 2026", nextBilling: "12 Aug" },
-  { id: "t5", name: "Vertex Labs", owner: "A. Kapoor", seats: 60, activeUsers: 55, monthly: PRICE, status: "trial", since: "Jun 2026", nextBilling: "trial ends 09 Jul" },
-  { id: "t6", name: "Pinnacle Mfg.", owner: "R. Iyer", seats: 200, activeUsers: 176, monthly: PRICE, status: "active", since: "Sep 2025", nextBilling: "03 Aug" },
+  { id: "t1", name: "geoSelfie (Acme HR)", owner: "Priya Menon", seats: 300, activeUsers: 42, monthly: 3 * PRICE, status: "active", since: "Jan 2026", nextBilling: "01 Aug" },
+  { id: "t2", name: "Nimbus Retail", owner: "K. Rao", seats: 120, activeUsers: 98, monthly: 2 * PRICE, status: "active", since: "Feb 2026", nextBilling: "05 Aug" },
+  { id: "t3", name: "Orbit Logistics", owner: "S. Fernandes", seats: 80, activeUsers: 61, monthly: 1 * PRICE, status: "overdue", since: "Nov 2025", nextBilling: "overdue" },
+  { id: "t4", name: "BlueLeaf Cafe", owner: "M. Shaikh", seats: 25, activeUsers: 19, monthly: 1 * PRICE, status: "active", since: "Mar 2026", nextBilling: "12 Aug" },
+  { id: "t5", name: "Vertex Labs", owner: "A. Kapoor", seats: 60, activeUsers: 55, monthly: 1 * PRICE, status: "trial", since: "Jun 2026", nextBilling: "trial ends 09 Jul" },
+  { id: "t6", name: "Pinnacle Mfg.", owner: "R. Iyer", seats: 200, activeUsers: 176, monthly: 2 * PRICE, status: "active", since: "Sep 2025", nextBilling: "03 Aug" },
 ];
 
 export const activeTenants = tenants.filter((t) => t.status === "active");
