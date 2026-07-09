@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth";
 import { useNotifications } from "@/lib/notifications";
 import { company } from "@/lib/mock";
 import { useTenants } from "@/lib/tenants";
+import AIChatWidget from "./AIChatWidget";
 
 export interface NavItem {
   key: string;
@@ -157,18 +158,23 @@ export default function DashboardShell({
               <div className="muted text-xs">
                 {session.role === "admin"
                   ? "Platform Administration"
-                  : `Pro · ${tenant?.activeUsers || company.employees} employees`}
+                  : session.role === "employee"
+                    ? "Employee Portal"
+                    : `Pro · ${tenant?.activeUsers || company.employees} employees`}
               </div>
             </div>
           </div>
 
-          {/* Search (desktop) */}
-          <div className="mx-auto hidden w-full max-w-sm items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 lg:flex">
-            <Search size={15} className="text-slate-400" />
-            <input
-              placeholder="Search employees, sites, reports…"
-              className="w-full bg-transparent text-sm outline-none"
-            />
+          {/* Center Area: AI & Search */}
+          <div className="mx-auto flex items-center justify-end gap-3 lg:w-full lg:max-w-sm lg:justify-center">
+            <AIChatWidget />
+            <div className="hidden w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 lg:flex">
+              <Search size={15} className="text-slate-400" />
+              <input
+                placeholder="Search employees, sites, reports…"
+                className="w-full bg-transparent text-sm outline-none"
+              />
+            </div>
           </div>
 
           {/* Notification bell */}
@@ -269,29 +275,6 @@ export default function DashboardShell({
           </div>
         </header>
 
-        {/* Mobile nav pills */}
-        <div
-          className="sticky top-[57px] z-20 flex gap-1 overflow-x-auto border-b border-white/10 px-3 py-2 md:hidden"
-          style={{
-            background: "rgba(9,10,20,0.92)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-          }}
-        >
-          {nav.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => onSelect(item.key)}
-              className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm ${
-                active === item.key
-                  ? "bg-indigo-500/20 text-white"
-                  : "muted"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
 
         <main className="flex-1 p-4 sm:p-5">{children}</main>
       </div>
@@ -303,6 +286,8 @@ export default function DashboardShell({
           onClick={() => setNotifOpen(false)}
         />
       )}
+
+
     </div>
   );
 }

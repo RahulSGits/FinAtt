@@ -143,9 +143,10 @@ function Header({
 
 function Overview() {
   const payrollTotal = seedPayroll.reduce((s, p) => s + p.net, 0);
+  const todayDate = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
   return (
     <div>
-      <Header title="Workforce Overview" sub="geoSelfie · July 2026" />
+      <Header title="Workforce Overview" sub={`geoSelfie · ${todayDate}`} />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Present today"
@@ -1446,7 +1447,7 @@ function Billing() {
   const amount = tierTotal(plans.basePrice, currentTier);
 
   const extraSeats = parseInt(extraSeatsInput) || 0;
-  const extraSeatsCost = (extraSeats / 100) * 599;
+  const extraSeatsCost = Math.ceil((extraSeats / 100) * 599);
 
   const [invoices, setInvoices] = useState([
     {
@@ -1573,13 +1574,36 @@ function Billing() {
                   <div className="mt-4 pt-3 border-t border-white/10">
                     <div className="text-sm text-slate-300 flex items-center gap-2">
                       <Users size={14} className="text-indigo-400" />
-                      {(tier.includedSeats || (tier.id === 'monthly' ? 300 : tier.id === 'sixmonth' ? 1400 : 3800)).toLocaleString()} Seats Included
+                      {(tier.includedSeats || (tier.id === 'monthly' ? 300 : tier.id === 'sixmonth' ? 1000 : 2000)).toLocaleString()} Seats Included
                     </div>
                     {saved > 0 && (
                       <div className="mt-1 text-xs text-emerald-300">
                         Save {INR(saved)} vs monthly
                       </div>
                     )}
+                    <ul className="mt-3 flex flex-col gap-1.5 text-xs text-slate-400">
+                      {tier.id === "monthly" && (
+                        <>
+                          <li>• AI HR Assistant</li>
+                          <li>• All Dashboards</li>
+                          <li>• Audit Logs</li>
+                        </>
+                      )}
+                      {tier.id === "sixmonth" && (
+                        <>
+                          <li>• Everything in Base</li>
+                          <li>• Priority Support</li>
+                          <li>• Advanced Reports</li>
+                        </>
+                      )}
+                      {tier.id === "yearly" && (
+                        <>
+                          <li>• Everything in Pro</li>
+                          <li>• Premium AI Features</li>
+                          <li>• Highest Priority Support</li>
+                        </>
+                      )}
+                    </ul>
                   </div>
                 </button>
               );
@@ -1671,14 +1695,15 @@ function Billing() {
       <div className="grid gap-4 lg:grid-cols-2 mt-4">
         <Panel title="Additional Employee Seat Pricing">
           <p className="muted text-sm mb-4">
-            Purchase extra seats at any time without changing your subscription plan. Every 100 seats cost ₹599.
+            Purchase extra seats at any time without changing your subscription plan. 
+            Minimum purchase is 50 seats. Every 100 seats cost ₹599.
           </p>
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex-1">
               <label className="block text-sm mb-1 text-slate-300">Number of Seats</label>
               <input 
                 type="number" 
-                min="0"
+                min="50"
                 value={extraSeatsInput} 
                 onChange={(e) => setExtraSeatsInput(e.target.value)}
                 placeholder="e.g. 50"
@@ -1694,7 +1719,7 @@ function Billing() {
           </div>
           <button 
             onClick={handlePurchaseExtraSeats}
-            disabled={extraSeats <= 0}
+            disabled={extraSeats < 50}
             className="w-full mt-4 flex items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 font-medium text-white hover:bg-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <CreditCard size={18} /> Purchase Seats with Razorpay

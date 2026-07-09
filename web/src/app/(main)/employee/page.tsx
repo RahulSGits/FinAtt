@@ -123,13 +123,15 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
     }, 2300);
   }
 
+  const todayDate = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+
   return (
     <div>
       <h1 className="text-2xl font-semibold tracking-tight">
         Good morning, {session?.name?.split(" ")[0] || "User"} 👋
       </h1>
-      <p className="muted text-sm">
-        Head Office · Morning shift · {to12h("09:00")} – {to12h("17:00")}
+      <p className="muted text-sm mt-1">
+        {todayDate} · Head Office · Morning shift
       </p>
 
       {broadcasts.length > 0 && (
