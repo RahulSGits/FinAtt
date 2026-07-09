@@ -123,7 +123,7 @@ export interface Tenant {
   nextBilling: string;
 }
 
-export const PRICE = 2999;
+export const PRICE = 4999;
 /** Six-month plan bills 6 months up front with a 20% discount. */
 export const SIX_MONTH = Math.round(PRICE * 6 * 0.8);
 /** Twelve-month plan bills 12 months up front with a 40% discount. */

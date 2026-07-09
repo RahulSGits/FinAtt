@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Fingerprint,
-  LogOut,
-  Search,
   Bell,
   Menu,
-  X,
+  LogOut,
+  Search,
   Check,
   CheckCheck,
 } from "lucide-react";

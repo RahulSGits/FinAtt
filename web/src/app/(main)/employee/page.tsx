@@ -33,7 +33,6 @@ import {
   myMonth,
   statusColor,
   mySalarySlips,
-  company,
   INR,
   to12h,
 } from "@/lib/mock";

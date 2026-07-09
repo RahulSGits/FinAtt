@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useMemo, useEffect } from "react";
+import { useRef, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -29,7 +29,6 @@ import {
   Save,
   RotateCcw,
   Filter,
-  ScanFace,
   MapPin,
   Search,
 } from "lucide-react";
@@ -52,7 +51,6 @@ import {
   tierPerMonth,
   tierSavings,
 } from "@/lib/subscription";
-import { useFaceEnrollment } from "@/lib/face";
 import { useGeofenceSettings } from "@/lib/geofence";
 import {
   INR,
@@ -1198,43 +1196,93 @@ function BroadcastView() {
 
 function Billing() {
   const { plans } = useSubscriptionPlans();
-  const { tenants } = useTenants();
-  const tenant = tenants.find(t => t.id === "t1") || tenants[0];
+  const { tenants, updateTenant } = useTenants();
+  const { push } = useNotifications();
+  const tenant = tenants.find((t) => t.id === "t1") || tenants[0];
   const [selectedTier, setSelectedTier] = useState<string>("monthly");
+  const [extraSeatsInput, setExtraSeatsInput] = useState<string>("");
 
   const currentTier = plans.tiers.find((t) => t.id === selectedTier) || plans.tiers[0];
-  const blocks = Math.max(1, Math.ceil(tenant.seats / 100));
-  const amount = tierTotal(plans.basePrice * blocks, currentTier);
+  const amount = tierTotal(plans.basePrice, currentTier);
 
-  const invoices = [
+  const extraSeats = parseInt(extraSeatsInput) || 0;
+  const extraSeatsCost = (extraSeats / 100) * 599;
+
+  const [invoices, setInvoices] = useState([
     {
       id: "INV-0007",
       date: "01 Jul 2026",
-      amount: plans.basePrice * blocks,
+      amount: plans.basePrice,
       status: "paid",
     },
     {
       id: "INV-0006",
       date: "01 Jun 2026",
-      amount: plans.basePrice * blocks,
+      amount: plans.basePrice,
       status: "paid",
     },
     {
       id: "INV-0005",
       date: "01 May 2026",
-      amount: plans.basePrice * blocks,
+      amount: plans.basePrice,
       status: "paid",
     },
-  ];
+  ]);
+
+  const handlePurchaseExtraSeats = () => {
+    if (extraSeats <= 0) return;
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => {
+      const options = {
+        key: "rzp_test_mock_key", // mock key
+        amount: extraSeatsCost * 100, // paise
+        currency: "INR",
+        name: "geoSelfie SaaS",
+        description: `Purchase ${extraSeats} Additional Seats`,
+        handler: function (response: { razorpay_payment_id: string }) {
+          updateTenant(tenant.id, { seats: tenant.seats + extraSeats });
+          
+          const newInvoice = {
+            id: `INV-${String(invoices.length + 8).padStart(4, "0")}`,
+            date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+            amount: extraSeatsCost,
+            status: "paid"
+          };
+          setInvoices([newInvoice, ...invoices]);
+
+          push({
+            type: "broadcast",
+            title: "Payment Successful",
+            body: `Your payment of ${INR(extraSeatsCost)} for ${extraSeats} additional seats was successful. Receipt emailed to hr@geoselfie.app.`,
+            roles: ["hr"]
+          });
+          
+          setExtraSeatsInput("");
+          alert(`Payment Successful! ${extraSeats} seats added. Payment ID: ${response.razorpay_payment_id}`);
+        },
+        prefill: {
+          name: "geoSelfie HR",
+          email: "hr@geoselfie.app"
+        },
+        theme: {
+          color: "#6366f1"
+        }
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    };
+    document.body.appendChild(script);
+  };
 
   return (
     <div>
       <Header
         title="Subscription & Billing"
-        sub={`geoSelfie Pro · manage your plan (${tenant.seats} seats)`}
+        sub={`geoSelfie Pro · manage your plan (Total Seats: ${tenant.seats})`}
       />
 
-      {/* Plan update notification */}
       {plans.updatedAt && (
         <div className="mb-4 flex items-center gap-2 rounded-xl border border-indigo-400/25 bg-indigo-500/10 px-4 py-2 text-sm text-indigo-200">
           <Sparkles size={15} />
@@ -1250,36 +1298,49 @@ function Billing() {
         <Panel title="Choose your plan" className="lg:col-span-2">
           <div className="grid gap-3 sm:grid-cols-3">
             {plans.tiers.map((tier) => {
-              const total = tierTotal(plans.basePrice * blocks, tier);
-              const pm = tierPerMonth(plans.basePrice * blocks, tier);
-              const saved = tierSavings(plans.basePrice * blocks, tier);
+              const total = tierTotal(plans.basePrice, tier);
+              const pm = tierPerMonth(plans.basePrice, tier);
+              const saved = tierSavings(plans.basePrice, tier);
               return (
                 <button
                   key={tier.id}
                   onClick={() => setSelectedTier(tier.id)}
-                  className={`relative rounded-2xl border p-4 text-left transition ${
+                  className={`relative rounded-2xl border p-4 text-left transition flex flex-col justify-between ${
                     selectedTier === tier.id
                       ? "border-indigo-400 bg-indigo-500/10"
                       : "border-white/10 bg-white/5 hover:bg-white/8"
                   }`}
                 >
-                  {tier.discountPct > 0 && (
-                    <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">
-                      <Sparkles size={12} /> Save {tier.discountPct}%
+                  {tier.badge && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 whitespace-nowrap rounded-full bg-indigo-500 px-2 py-0.5 text-xs text-white shadow-lg">
+                      <Sparkles size={12} /> {tier.badge}
                     </span>
                   )}
-                  <div className="text-sm font-medium">{tier.label}</div>
-                  <div className="mt-1 text-2xl font-semibold">{INR(total)}</div>
-                  <div className="muted mt-1 text-xs">
-                    {tier.months === 1
-                      ? "billed monthly"
-                      : `${INR(pm)}/mo · billed every ${tier.months} months`}
-                  </div>
-                  {saved > 0 && (
-                    <div className="mt-1 text-xs text-emerald-300">
-                      Save {INR(saved)} vs monthly
-                    </div>
+                  {tier.discountPct > 0 && (
+                    <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">
+                      Save {tier.discountPct}%
+                    </span>
                   )}
+                  <div>
+                    <div className="text-sm font-medium mt-1">{tier.label}</div>
+                    <div className="mt-1 text-2xl font-semibold">{INR(total)}</div>
+                    <div className="muted mt-1 text-xs">
+                      {tier.months === 1
+                        ? "billed monthly"
+                        : `${INR(pm)}/mo · billed every ${tier.months} months`}
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-white/10">
+                    <div className="text-sm text-slate-300 flex items-center gap-2">
+                      <Users size={14} className="text-indigo-400" />
+                      {(tier.includedSeats || (tier.id === 'monthly' ? 300 : tier.id === 'sixmonth' ? 1400 : 3800)).toLocaleString()} Seats Included
+                    </div>
+                    {saved > 0 && (
+                      <div className="mt-1 text-xs text-emerald-300">
+                        Save {INR(saved)} vs monthly
+                      </div>
+                    )}
+                  </div>
                 </button>
               );
             })}
@@ -1297,18 +1358,18 @@ function Billing() {
                 </span>
               </div>
             </div>
-            <button 
+            <button
               onClick={() => {
                 const script = document.createElement("script");
                 script.src = "https://checkout.razorpay.com/v1/checkout.js";
                 script.onload = () => {
                   const options = {
-                    key: "rzp_test_mock_key", // mock key
-                    amount: amount * 100, // paise
+                    key: "rzp_test_mock_key",
+                    amount: amount * 100,
                     currency: "INR",
                     name: "geoSelfie SaaS",
                     description: `${currentTier.label} Subscription`,
-                    handler: function (response: any) {
+                    handler: function (response: { razorpay_payment_id: string }) {
                       alert(`Payment Successful! Payment ID: ${response.razorpay_payment_id}`);
                     },
                     prefill: {
@@ -1319,6 +1380,7 @@ function Billing() {
                       color: "#6366f1"
                     }
                   };
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   const rzp = new (window as any).Razorpay(options);
                   rzp.open();
                 };
@@ -1330,6 +1392,7 @@ function Billing() {
             </button>
           </div>
         </Panel>
+
         <div className="grid content-start gap-4">
           <div className="glass rounded-2xl p-5">
             <div className="muted text-sm">Subscription</div>
@@ -1341,7 +1404,7 @@ function Billing() {
           <div className="glass rounded-2xl p-5">
             <div className="muted text-sm">Next billing</div>
             <div className="mt-1 text-xl font-semibold">01 Aug 2026</div>
-            <div className="muted mt-1 text-xs">Pro plan · geoSelfie</div>
+            <div className="muted mt-1 text-xs">{currentTier.label} · geoSelfie</div>
           </div>
           <div className="glass rounded-2xl p-5">
             <div className="muted text-sm">Billing schedule</div>
@@ -1360,49 +1423,74 @@ function Billing() {
                 </span>
                 <span>{INR(amount)}</span>
               </div>
-              <div className="flex justify-between muted">
-                <span>
-                  {currentTier.months === 1
-                    ? "01 Oct 2026"
-                    : currentTier.months === 6
-                      ? "01 Aug 2027"
-                      : "01 Aug 2028"}
-                </span>
-                <span>{INR(amount)}</span>
-              </div>
             </div>
           </div>
         </div>
       </div>
-      <Panel title="Payment history" className="mt-4">
-        <div className="table-wrap">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="muted border-b border-white/5 text-left text-xs">
-                <th className="pb-3 font-medium">Invoice</th>
-                <th className="pb-3 font-medium">Date</th>
-                <th className="pb-3 text-right font-medium">Amount</th>
-                <th className="pb-3 text-right font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map((iv) => (
-                <tr
-                  key={iv.id}
-                  className="border-b border-white/5 last:border-0"
-                >
-                  <td className="py-3 font-mono text-xs">{iv.id}</td>
-                  <td className="muted py-3">{iv.date}</td>
-                  <td className="py-3 text-right">{INR(iv.amount)}</td>
-                  <td className="py-3 text-right">
-                    <Pill tone="#34d399">{iv.status}</Pill>
-                  </td>
+
+      <div className="grid gap-4 lg:grid-cols-2 mt-4">
+        <Panel title="Additional Employee Seat Pricing">
+          <p className="muted text-sm mb-4">
+            Purchase extra seats at any time without changing your subscription plan. Every 100 seats cost ₹599.
+          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex-1">
+              <label className="block text-sm mb-1 text-slate-300">Number of Seats</label>
+              <input 
+                type="number" 
+                min="0"
+                value={extraSeatsInput} 
+                onChange={(e) => setExtraSeatsInput(e.target.value)}
+                placeholder="e.g. 50"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col justify-center">
+              <span className="muted text-xs block">Payable Amount</span>
+              <span className="text-xl font-semibold text-emerald-400">
+                {INR(extraSeatsCost)}
+              </span>
+            </div>
+          </div>
+          <button 
+            onClick={handlePurchaseExtraSeats}
+            disabled={extraSeats <= 0}
+            className="w-full mt-4 flex items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 font-medium text-white hover:bg-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <CreditCard size={18} /> Purchase Seats with Razorpay
+          </button>
+        </Panel>
+
+        <Panel title="Payment history">
+          <div className="table-wrap h-full max-h-[220px] overflow-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="muted border-b border-white/5 text-left text-xs">
+                  <th className="pb-3 font-medium">Invoice</th>
+                  <th className="pb-3 font-medium">Date</th>
+                  <th className="pb-3 text-right font-medium">Amount</th>
+                  <th className="pb-3 text-right font-medium">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
+              </thead>
+              <tbody>
+                {invoices.map((iv) => (
+                  <tr
+                    key={iv.id}
+                    className="border-b border-white/5 last:border-0"
+                  >
+                    <td className="py-3 font-mono text-xs">{iv.id}</td>
+                    <td className="muted py-3">{iv.date}</td>
+                    <td className="py-3 text-right">{INR(iv.amount)}</td>
+                    <td className="py-3 text-right">
+                      <Pill tone="#34d399">{iv.status}</Pill>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      </div>
     </div>
   );
 }
@@ -1449,7 +1537,7 @@ function GeofenceView() {
       } else {
         alert("Location not found");
       }
-    } catch (err) {
+    } catch {
       alert("Error searching location");
     } finally {
       setSearching(false);

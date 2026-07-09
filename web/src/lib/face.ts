@@ -15,6 +15,7 @@ export function useFaceEnrollment(email: string) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSnapshot(localStorage.getItem(key));
     setEnrolledAt(localStorage.getItem(`${key}_at`));
     const descStr = localStorage.getItem(`${key}_desc`);

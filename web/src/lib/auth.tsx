@@ -65,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const raw = localStorage.getItem(SESSION_KEY);
       if (raw) {
         const parsed = sanitise(JSON.parse(raw));
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (parsed) setSession(parsed);
         else localStorage.removeItem(SESSION_KEY); // expired or tampered
       }

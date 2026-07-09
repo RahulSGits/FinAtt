@@ -13,6 +13,8 @@ export interface PlanTier {
   label: string;
   months: number;
   discountPct: number; // 0–100
+  includedSeats: number;
+  badge?: string;
 }
 
 export interface SubscriptionPlans {
@@ -22,12 +24,12 @@ export interface SubscriptionPlans {
 }
 
 // ── Defaults ────────────────────────────────────────────────────────────
-export const DEFAULT_BASE = 2999;
+export const DEFAULT_BASE = 4999;
 
 export const DEFAULT_TIERS: PlanTier[] = [
-  { id: "monthly", label: "Monthly", months: 1, discountPct: 0 },
-  { id: "sixmonth", label: "6 Months", months: 6, discountPct: 20 },
-  { id: "yearly", label: "12 Months", months: 12, discountPct: 40 },
+  { id: "monthly", label: "Monthly Plan", months: 1, discountPct: 0, includedSeats: 300 },
+  { id: "sixmonth", label: "6-Month Plan", months: 6, discountPct: 20, includedSeats: 1400 },
+  { id: "yearly", label: "Yearly Plan", months: 12, discountPct: 40, includedSeats: 3800, badge: "Best Value" },
 ];
 
 const KEY = "gs_subscription_plans";
@@ -45,7 +47,14 @@ function read(): SubscriptionPlans {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return defaults();
-    return { ...defaults(), ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    
+    // Invalidate stale localStorage if the old format is detected
+    if (parsed.tiers && parsed.tiers.length > 0 && typeof parsed.tiers[0].includedSeats === 'undefined') {
+      return defaults();
+    }
+    
+    return { ...defaults(), ...parsed };
   } catch {
     return defaults();
   }
