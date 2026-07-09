@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -19,6 +19,7 @@ import {
   Building2,
   Laptop,
   Megaphone,
+  X,
 } from "lucide-react";
 import DashboardShell, { type NavItem } from "@/components/DashboardShell";
 import FaceScan from "@/components/FaceScan";
@@ -27,6 +28,7 @@ import { StatCard, Panel, Pill } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 import { useFaceEnrollment } from "@/lib/face";
 import { useBroadcasts } from "@/lib/broadcast";
+import { useGeofenceSettings, calculateDistance } from "@/lib/geofence";
 import {
   myMonth,
   statusColor,
@@ -68,12 +70,43 @@ type Step = 0 | 1 | 2 | 3; // idle, face, gps, done
 
 function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
   const { session } = useAuth();
-  const { enrolled } = useFaceEnrollment(session?.email ?? "guest");
+  const { enrolled, descriptor } = useFaceEnrollment(session?.email ?? "guest");
   const { items: broadcasts } = useBroadcasts();
+  const { config } = useGeofenceSettings();
+  const [distance, setDistance] = useState<number | null>(null);
+  const [userPos, setUserPos] = useState<{lat: number, lng: number} | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const [step, setStep] = useState<Step>(0);
   const [checkedIn, setCheckedIn] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [mode, setMode] = useState<"office" | "remote">("office");
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGeoError("Geolocation not supported");
+      return;
+    }
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const dist = calculateDistance(
+          pos.coords.latitude,
+          pos.coords.longitude,
+          config.lat,
+          config.lng
+        );
+        setDistance(dist);
+        setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGeoError(null);
+      },
+      (err) => {
+        setGeoError("Location access denied.");
+      },
+      { enableHighAccuracy: true }
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [config.lat, config.lng]);
+
+  const isInside = distance !== null && distance <= config.radius;
 
   function run() {
     setStep(1);
@@ -134,6 +167,7 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
       {scanOpen && (
         <FaceScan
           mode="verify"
+          enrolledDescriptor={descriptor}
           onClose={() => setScanOpen(false)}
           onVerified={() => {
             setScanOpen(false);
@@ -207,6 +241,24 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
                   : "Not checked in"}
               </div>
 
+              {userPos && mode === "office" && (
+                <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-xs">
+                  <div className="font-medium text-slate-300">Your Location:</div>
+                  <div className="muted mt-1 font-mono">
+                    {userPos.lat.toFixed(5)}, {userPos.lng.toFixed(5)}
+                  </div>
+                  <div className="mt-1">
+                    {distance !== null ? (
+                      <span className={distance <= config.radius ? "text-emerald-400" : "text-amber-400"}>
+                        {distance} meters from office (Max allowed: {config.radius}m)
+                      </span>
+                    ) : (
+                      <span className="muted">Calculating distance...</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {!checkedIn && (
                 <div className="mt-3">
                   <div className="muted mb-1.5 text-xs">Work mode</div>
@@ -243,8 +295,17 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
                 />
                 <CheckRow
                   active={step === 2}
-                  label="Inside geofence (Head Office · 150 m)"
-                  done={step > 2}
+                  label={
+                    mode === "office"
+                      ? distance === null
+                        ? geoError ? `Geofence: ${geoError}` : "Locating..."
+                        : isInside
+                          ? `Inside geofence (${distance}m away)`
+                          : `Outside geofence (${distance}m away. Max: ${config.radius}m)`
+                      : "Remote (Geofence disabled)"
+                  }
+                  done={step > 2 || (step === 0 && mode === "office" && isInside) || (step === 0 && mode === "remote")}
+                  error={mode === "office" && step === 0 && distance !== null && !isInside}
                 />
                 <CheckRow
                   active={step === 3}
@@ -260,7 +321,7 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
                       ? () => setScanOpen(true)
                       : () => onNavigate("profile")
                 }
-                disabled={step === 1 || step === 2}
+                disabled={step === 1 || step === 2 || (!checkedIn && mode === "office" && !isInside)}
                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-3 font-medium text-white hover:bg-indigo-400 disabled:opacity-60"
               >
                 {!checkedIn && step === 0 && <Camera size={18} />}
@@ -335,25 +396,51 @@ function CheckRow({
   active,
   label,
   done,
+  error,
 }: {
   active: boolean;
   label: string;
   done: boolean;
+  error?: boolean;
 }) {
   return (
     <div className="flex items-center gap-2.5 text-sm">
       <span
         className={`grid h-5 w-5 place-items-center rounded-full text-[10px] ${
-          done
-            ? "bg-emerald-500/25 text-emerald-300"
-            : active
-              ? "bg-indigo-500/25 text-indigo-200"
-              : "bg-white/5 text-slate-500"
+          error
+            ? "bg-red-500/25 text-red-400"
+            : done
+              ? "bg-emerald-500/25 text-emerald-300"
+              : active
+                ? "bg-indigo-500/25 text-indigo-200"
+                : "bg-white/5 text-slate-500"
         }`}
       >
-        {done ? "✓" : active ? "…" : ""}
+        {error ? (
+          <X size={12} />
+        ) : done ? (
+          <CheckCircle2 size={12} />
+        ) : active ? (
+          <motion.div
+            className="h-1.5 w-1.5 rounded-full bg-current"
+            animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+            transition={{ duration: 1, repeat: Infinity }}
+          />
+        ) : (
+          <div className="h-1.5 w-1.5 rounded-full bg-current" />
+        )}
       </span>
-      <span className={done ? "text-slate-200" : "muted"}>{label}</span>
+      <span
+        className={
+          error
+            ? "text-red-400"
+            : done || active
+              ? "text-slate-200"
+              : "text-slate-500"
+        }
+      >
+        {label}
+      </span>
     </div>
   );
 }

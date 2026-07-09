@@ -2,24 +2,24 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Camera, ScanFace, CheckCircle2, AlertTriangle, X, RefreshCw } from "lucide-react";
+import * as faceapi from "@vladmandic/face-api";
 
-type Phase = "starting" | "live" | "denied" | "nocam" | "error";
+type Phase = "starting" | "loading_models" | "live" | "denied" | "nocam" | "error";
+type EnrollStep = "center" | "left" | "right" | "up" | "done";
 
-/**
- * Real-time webcam face detection. Streams the user's camera and, where the
- * browser exposes the Shape Detection API (`window.FaceDetector`, Chromium),
- * draws live bounding boxes and reports how many faces are in frame. Falls
- * back gracefully (still shows the camera) when detection isn't available.
- */
+const ENROLL_STEPS: EnrollStep[] = ["center", "left", "right", "up", "done"];
+
 export default function FaceScan({
   mode = "verify",
+  enrolledDescriptor,
   onVerified,
   onEnrolled,
   onClose,
 }: {
   mode?: "verify" | "enroll";
+  enrolledDescriptor?: Float32Array | null;
   onVerified?: () => void;
-  onEnrolled?: (snapshot: string) => void;
+  onEnrolled?: (snapshot: string, descriptor: Float32Array) => void;
   onClose: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -28,10 +28,17 @@ export default function FaceScan({
   const rafRef = useRef<number>(0);
 
   const [phase, setPhase] = useState<Phase>("starting");
-  const [faces, setFaces] = useState(0);
-  const [supported, setSupported] = useState(true);
   const [retry, setRetry] = useState(0);
-  const [matching, setMatching] = useState(false);
+  
+  // Verification state
+  const [matchStatus, setMatchStatus] = useState<"pending" | "matched" | "mismatch">("pending");
+  const [distanceVal, setDistanceVal] = useState<number | null>(null);
+  
+  // Enrollment state
+  const [enrollStepIdx, setEnrollStepIdx] = useState(0);
+  const [capturedDescriptor, setCapturedDescriptor] = useState<Float32Array | null>(null);
+
+  const enrollStep = ENROLL_STEPS[enrollStepIdx];
 
   function captureSnapshot(): string {
     const video = videoRef.current;
@@ -41,7 +48,6 @@ export default function FaceScan({
     c.height = 240;
     const ctx = c.getContext("2d");
     if (!ctx) return "";
-    // center-crop square, mirror to match the on-screen preview
     ctx.translate(c.width, 0);
     ctx.scale(-1, 1);
     const vw = video.videoWidth || 480;
@@ -51,20 +57,23 @@ export default function FaceScan({
     return c.toDataURL("image/jpeg", 0.7);
   }
 
-  function handlePrimary() {
-    if (mode === "enroll") {
-      onEnrolled?.(captureSnapshot() || "enrolled");
-      return;
-    }
-    // verify: brief "matching against registered face" then done
-    setMatching(true);
-    setTimeout(() => onVerified?.(), 900);
-  }
-
   useEffect(() => {
     let cancelled = false;
 
-    async function start() {
+    async function initModels() {
+      setPhase("loading_models");
+      try {
+        await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+        await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+        await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+        if (!cancelled) startCamera();
+      } catch (err) {
+        console.error("Failed to load face-api models", err);
+        setPhase("error");
+      }
+    }
+
+    async function startCamera() {
       if (!navigator.mediaDevices?.getUserMedia) {
         setPhase("nocam");
         return;
@@ -91,59 +100,100 @@ export default function FaceScan({
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const FD = (typeof window !== "undefined" && (window as any).FaceDetector) || null;
-    const detector = FD ? new FD({ fastMode: true, maxDetectedFaces: 5 }) : null;
-    if (!detector) setSupported(false);
-
     async function loop() {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      if (!video || !canvas || video.readyState < 2) {
+      if (!video || !canvas || video.readyState < 2 || cancelled) {
         rafRef.current = requestAnimationFrame(loop);
         return;
       }
+      
+      const detection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+      
       const ctx = canvas.getContext("2d");
       if (ctx) {
         canvas.width = video.videoWidth || 480;
         canvas.height = video.videoHeight || 480;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (detector) {
-          try {
-            const found = await detector.detect(video);
-            setFaces(found.length);
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = "#34d399";
-            ctx.shadowColor = "#34d399";
-            ctx.shadowBlur = 12;
-            for (const f of found) {
-              const b = f.boundingBox;
-              ctx.strokeRect(b.x, b.y, b.width, b.height);
+        
+        if (detection) {
+          // Draw bounding box
+          const box = detection.detection.box;
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "#34d399";
+          
+          if (mode === "verify") {
+            if (enrolledDescriptor) {
+              const distance = faceapi.euclideanDistance(detection.descriptor, enrolledDescriptor);
+              setDistanceVal(distance);
+              if (distance < 0.5) { // 0.5 threshold for strict matching
+                setMatchStatus("matched");
+                ctx.strokeStyle = "#34d399"; // Green
+                // Auto-confirm if match
+                setTimeout(() => { if (!cancelled) onVerified?.(); }, 1000);
+              } else {
+                setMatchStatus("mismatch");
+                ctx.strokeStyle = "#f87171"; // Red
+              }
+            } else {
+              setMatchStatus("mismatch");
+              ctx.strokeStyle = "#f87171";
             }
-          } catch {
-            setSupported(false);
+          } else {
+            // ENROLL MODE
+            const landmarks = detection.landmarks;
+            const nose = landmarks.getNose()[3];
+            const leftEye = landmarks.getLeftEye()[0];
+            const rightEye = landmarks.getRightEye()[3];
+            
+            const distLeft = Math.abs(nose.x - leftEye.x);
+            const distRight = Math.abs(nose.x - rightEye.x);
+            const yaw = (distRight - distLeft) / (distRight + distLeft);
+            
+            const eyeY = (leftEye.y + rightEye.y) / 2;
+            const pitch = (nose.y - eyeY);
+            
+            setEnrollStepIdx(curr => {
+              const step = ENROLL_STEPS[curr];
+              if (step === "center" && Math.abs(yaw) < 0.15 && pitch > 20) {
+                if (!capturedDescriptor) setCapturedDescriptor(detection.descriptor);
+                return curr + 1;
+              }
+              if (step === "left" && yaw < -0.3) return curr + 1;
+              if (step === "right" && yaw > 0.3) return curr + 1;
+              if (step === "up" && pitch < 15) return curr + 1;
+              return curr;
+            });
           }
+
+          ctx.strokeRect(box.x, box.y, box.width, box.height);
         }
       }
       rafRef.current = requestAnimationFrame(loop);
     }
 
-    start();
+    initModels();
+    
     return () => {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
-  }, [retry]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retry, mode, enrolledDescriptor]);
 
   const doRetry = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
-    setFaces(0);
     setPhase("starting");
+    setMatchStatus("pending");
     setRetry((r) => r + 1);
   };
 
-  const detected = faces > 0;
+  const handleEnrollComplete = () => {
+    if (capturedDescriptor) {
+      onEnrolled?.(captureSnapshot(), capturedDescriptor);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
@@ -151,7 +201,7 @@ export default function FaceScan({
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ScanFace size={20} className="text-indigo-300" />
-            <h3 className="font-semibold">{mode === "enroll" ? "Register your face" : "Live face check"}</h3>
+            <h3 className="font-semibold">{mode === "enroll" ? "Secure Face Registration" : "Biometric Check-in"}</h3>
           </div>
           <button onClick={onClose} className="muted hover:text-white"><X size={18} /></button>
         </div>
@@ -160,33 +210,51 @@ export default function FaceScan({
           <video ref={videoRef} playsInline muted className="h-full w-full -scale-x-100 object-cover" />
           <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full -scale-x-100" />
 
-          {/* scanning ring */}
           {phase === "live" && (
             <div className="pointer-events-none absolute inset-4 rounded-full border-2 border-dashed"
-              style={{ borderColor: detected ? "#34d399" : "rgba(165,180,252,0.5)" }} />
+              style={{ borderColor: matchStatus === "mismatch" ? "#f87171" : matchStatus === "matched" ? "#34d399" : "rgba(165,180,252,0.5)" }} />
           )}
 
           {phase !== "live" && (
-            <div className="absolute inset-0 grid place-items-center p-6 text-center">
+            <div className="absolute inset-0 grid place-items-center p-6 text-center bg-black/80">
               {phase === "starting" && <StateMsg icon={<Camera />} tone="#a5b4fc" text="Starting camera…" />}
+              {phase === "loading_models" && <StateMsg icon={<RefreshCw className="animate-spin" />} tone="#a5b4fc" text="Loading AI models..." />}
               {phase === "denied" && <StateMsg icon={<AlertTriangle />} tone="#fbbf24" text="Camera permission denied. Allow access and retry." />}
               {phase === "nocam" && <StateMsg icon={<AlertTriangle />} tone="#fbbf24" text="No camera found on this device." />}
-              {phase === "error" && <StateMsg icon={<AlertTriangle />} tone="#f87171" text="Couldn't start the camera." />}
+              {phase === "error" && <StateMsg icon={<AlertTriangle />} tone="#f87171" text="Couldn't start the camera or load AI." />}
             </div>
           )}
         </div>
 
-        <div className="mt-4 flex items-center justify-center gap-2 text-sm">
-          <span className={`h-2 w-2 rounded-full ${matching ? "bg-indigo-400" : detected ? "bg-emerald-400" : "bg-slate-500"}`} />
-          {matching
-            ? <span className="text-indigo-200">Matching against registered face…</span>
-            : phase === "live"
-              ? supported
-                ? detected
-                  ? <span className="text-emerald-300">Face detected ({faces})</span>
-                  : <span className="muted">Position your face in the ring…</span>
-                : <span className="muted">Camera live · live detection not supported in this browser</span>
-              : <span className="muted">Waiting for camera…</span>}
+        <div className="mt-4 flex items-center justify-center gap-2 text-sm font-medium h-12">
+          {mode === "enroll" && phase === "live" && (
+            <div className="text-center w-full">
+              {enrollStep === "center" && <span className="text-indigo-300">Look straight at the camera</span>}
+              {enrollStep === "left" && <span className="text-amber-300">Turn your head left</span>}
+              {enrollStep === "right" && <span className="text-amber-300">Turn your head right</span>}
+              {enrollStep === "up" && <span className="text-amber-300">Look slightly up</span>}
+              {enrollStep === "done" && <span className="text-emerald-400">Liveness check complete!</span>}
+              
+              <div className="flex justify-center gap-1 mt-3">
+                {ENROLL_STEPS.slice(0, 4).map((s, i) => (
+                  <div key={s} className={`h-2 w-8 rounded-full ${i < enrollStepIdx ? "bg-emerald-400" : i === enrollStepIdx ? "bg-amber-400 animate-pulse" : "bg-white/10"}`} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {mode === "verify" && phase === "live" && (
+            <div className="text-center w-full">
+              {matchStatus === "pending" && <span className="text-indigo-300 animate-pulse">Scanning face...</span>}
+              {matchStatus === "matched" && <span className="text-emerald-400 flex justify-center items-center gap-1"><CheckCircle2 size={16}/> Identity Verified!</span>}
+              {matchStatus === "mismatch" && (
+                <div className="text-red-400">
+                  <div className="flex justify-center items-center gap-1 font-bold"><AlertTriangle size={16}/> Face Mismatch!</div>
+                  <div className="text-xs opacity-70 mt-1">Distance: {distanceVal?.toFixed(2)} (Must be &lt; 0.5)</div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mt-4 flex gap-2">
@@ -195,16 +263,18 @@ export default function FaceScan({
               onClick={doRetry}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-3 font-medium hover:bg-white/10"
             >
-              <RefreshCw size={17} /> Retry camera
+              <RefreshCw size={17} /> Retry
             </button>
           )}
-          <button
-            onClick={handlePrimary}
-            disabled={matching || phase !== "live" || (supported && !detected)}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-500 py-3 font-medium text-white hover:bg-indigo-400 disabled:opacity-50"
-          >
-            <CheckCircle2 size={18} /> {mode === "enroll" ? "Capture & register" : "Confirm & check in"}
-          </button>
+          {mode === "enroll" && (
+            <button
+              onClick={handleEnrollComplete}
+              disabled={enrollStep !== "done"}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-3 font-medium text-white hover:bg-indigo-400 disabled:opacity-50"
+            >
+              <CheckCircle2 size={18} /> Register Profile
+            </button>
+          )}
         </div>
       </div>
     </div>

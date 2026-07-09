@@ -286,8 +286,8 @@ export default function Profile() {
         <FaceScan
           mode="enroll"
           onClose={() => setScan(false)}
-          onEnrolled={(img) => {
-            enroll(img);
+          onEnrolled={(img, desc) => {
+            enroll(img, desc);
             setScan(false);
           }}
         />

@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Fingerprint, Building2, Mail, Lock, ArrowRight, ScanFace } from "lucide-react";
+import { Fingerprint, Building2, Mail, Lock, ArrowRight, ScanFace, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { demoAccounts, type Role } from "@/lib/mock";
 import TiltCard from "@/components/TiltCard";
@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [companyId, setCompanyId] = useState("GEO");
   const [email, setEmail] = useState("rahul@geoselfie.app");
   const [password, setPassword] = useState("demo1234");
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<Role>("admin");
 
   const routeFor = (r: Role) => (r === "admin" ? "/admin" : r === "hr" ? "/hr" : "/employee");
@@ -90,11 +91,19 @@ export default function LoginPage() {
               </Field>
               <Field icon={<Lock size={16} />} label="Password">
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-transparent outline-none"
+                  className="w-full bg-transparent outline-none flex-1"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-slate-400 hover:text-white focus:outline-none flex-shrink-0"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </Field>
 
               <div>

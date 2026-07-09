@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -30,6 +30,8 @@ import {
   RotateCcw,
   Filter,
   ScanFace,
+  MapPin,
+  Search,
 } from "lucide-react";
 import {
   Area,
@@ -51,6 +53,7 @@ import {
   tierSavings,
 } from "@/lib/subscription";
 import { useFaceEnrollment } from "@/lib/face";
+import { useGeofenceSettings } from "@/lib/geofence";
 import {
   INR,
   kpis,
@@ -64,6 +67,16 @@ import {
   type Status,
   type PayrollRow,
 } from "@/lib/mock";
+import dynamic from "next/dynamic";
+
+const DynamicMap = dynamic(() => import("@/components/GeofenceMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-full place-items-center text-sm text-slate-400">
+      Loading interactive map...
+    </div>
+  ),
+});
 
 const nav: NavItem[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
@@ -73,6 +86,7 @@ const nav: NavItem[] = [
   { key: "leave", label: "Leave", icon: CalendarCheck },
   { key: "broadcast", label: "Broadcast", icon: Megaphone },
   { key: "billing", label: "Billing", icon: CreditCard },
+  { key: "geofence", label: "Geofence", icon: MapPin },
   { key: "profile", label: "Profile", icon: User },
 ];
 
@@ -95,6 +109,7 @@ export default function HrPage() {
       {active === "leave" && <LeaveView />}
       {active === "broadcast" && <BroadcastView />}
       {active === "billing" && <Billing />}
+      {active === "geofence" && <GeofenceView />}
       {active === "profile" && <Profile />}
     </DashboardShell>
   );
@@ -1307,3 +1322,208 @@ const tooltipStyle = {
   borderRadius: 12,
   fontSize: 12,
 };
+
+
+
+// ── Geofence ─────────────────────────────────────────────────────────────
+
+function GeofenceView() {
+  const { config, history, updateConfig } = useGeofenceSettings();
+  const [lat, setLat] = useState(config.lat.toString());
+  const [lng, setLng] = useState(config.lng.toString());
+  const [radius, setRadius] = useState(config.radius.toString());
+  const [address, setAddress] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const center = {
+    lat: parseFloat(lat) || config.lat,
+    lng: parseFloat(lng) || config.lng,
+  };
+  const numRadius = parseInt(radius, 10) || config.radius;
+
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!address.trim()) return;
+    setSearching(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        setLat(data[0].lat);
+        setLng(data[0].lon);
+        setAddress("");
+      } else {
+        alert("Location not found");
+      }
+    } catch (err) {
+      alert("Error searching location");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    updateConfig({
+      lat: center.lat,
+      lng: center.lng,
+      radius: numRadius,
+    });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div className="max-w-4xl">
+      <Header
+        title="Geofence Configuration"
+        sub="Set the office location boundaries for employee check-ins."
+      />
+      <Panel>
+        <div className="grid lg:grid-cols-2 gap-6 p-6">
+          <div className="space-y-6">
+            <form onSubmit={handleSearch}>
+              <label className="muted mb-1.5 block text-sm">Search Address</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. Connaught Place, New Delhi"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500/50"
+                />
+                <button
+                  type="submit"
+                  disabled={searching}
+                  className="flex items-center justify-center rounded-lg bg-white/10 px-4 text-slate-300 hover:bg-white/20 disabled:opacity-50"
+                >
+                  <Search size={18} />
+                </button>
+              </div>
+            </form>
+
+            <form onSubmit={handleSave} className="space-y-5">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label className="muted mb-1.5 block text-sm">Latitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    value={lat}
+                    onChange={(e) => setLat(e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="muted mb-1.5 block text-sm">Longitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    value={lng}
+                    onChange={(e) => setLng(e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500/50"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="muted mb-1.5 block text-sm">
+                    Allowed Radius (meters)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="10"
+                    value={radius}
+                    onChange={(e) => setRadius(e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500/50"
+                  />
+                  <p className="muted mt-2 text-xs">
+                    Employees must be within this distance from the office to mark attendance. Default is 150m.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="submit"
+                  className="flex items-center gap-2 rounded-lg bg-indigo-500 px-6 py-2.5 text-sm font-medium hover:bg-indigo-400"
+                >
+                  <Save size={16} />
+                  Save Settings
+                </button>
+                {saved && (
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center gap-1 text-sm text-emerald-400"
+                  >
+                    <Check size={14} /> Saved and broadcasted
+                  </motion.span>
+                )}
+              </div>
+            </form>
+          </div>
+
+          <div className="h-[450px] w-full overflow-hidden rounded-xl border border-white/10 relative bg-[#0e1020]">
+            <DynamicMap 
+              lat={center.lat} 
+              lng={center.lng} 
+              radius={numRadius} 
+              onChange={(newLat, newLng) => {
+                setLat(newLat.toString());
+                setLng(newLng.toString());
+              }} 
+            />
+            <div className="absolute top-2 left-16 z-[1000] pointer-events-none rounded bg-black/50 px-2 py-1 text-xs text-white backdrop-blur-md">
+              Click map to move pin
+            </div>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel className="mt-6" title="Configuration History">
+        <div className="p-6">
+          <p className="muted mb-4 text-sm">
+            Track when the company's geofence boundaries were modified.
+          </p>
+          {history.length === 0 ? (
+            <div className="rounded-xl border border-white/5 bg-white/5 p-8 text-center text-sm text-slate-400">
+              No recent changes found.
+            </div>
+          ) : (
+            <div className="table-wrap rounded-xl border border-white/5 bg-white/5">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-white/5 text-slate-400 bg-black/20">
+                    <th className="px-4 py-3 font-medium">Time of Change</th>
+                    <th className="px-4 py-3 font-medium">Coordinates</th>
+                    <th className="px-4 py-3 font-medium">Area (Radius)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {history.map((h, i) => (
+                    <tr key={i} className="hover:bg-white/5">
+                      <td className="px-4 py-3 text-slate-300">
+                        {new Date(h.timestamp).toLocaleString()}
+                        {i === 0 && <span className="ml-2 rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] uppercase text-indigo-300">Current</span>}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-300">
+                        {h.lat.toFixed(6)}, {h.lng.toFixed(6)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-300">
+                          {h.radius} meters
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Panel>
+    </div>
+  );
+}
