@@ -213,3 +213,38 @@ h1 {
 .toast-enter {
   animation: toast-in 0.25s ease-out;
 }
+
+/* ── Print styles for PDF export ────────────────────────────────────────── */
+@media print {
+  /* Hide all interactive UI and sidebars */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .print-hidden,
+  nav,
+  header:not(.print-header),
+  .aurora,
+  .grid-overlay {
+    display: none !important;
+  }
+
+  /* Force background colors on the attendance pills */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Reset layout constraints so it fills the page */
+  main, .glass, .glass-strong, .panel {
+    background: transparent !important;
+    border: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+}

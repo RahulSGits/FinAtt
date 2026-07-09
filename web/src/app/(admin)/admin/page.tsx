@@ -108,12 +108,6 @@ function Header({
 
 function DemoControls() {
   const router = useRouter();
-  const { login } = useAuth();
-  function openAs(role: "hr" | "employee") {
-    const acc = demoAccounts.find((a) => a.role === role)!;
-    login({ role, email: acc.email, name: acc.name });
-    router.push(role === "hr" ? "/hr" : "/employee");
-  }
   return (
     <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
       <div className="mr-auto flex items-center gap-2 text-sm">
@@ -123,16 +117,10 @@ function DemoControls() {
         </span>
       </div>
       <button
-        onClick={() => openAs("hr")}
-        className="flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+        onClick={() => router.push("/demo")}
+        className="flex items-center gap-2 rounded-xl bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/30"
       >
-        <Building2 size={16} /> Open HR demo
-      </button>
-      <button
-        onClick={() => openAs("employee")}
-        className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-      >
-        <UserRound size={16} /> Open Employee demo
+        Open Live Split-Screen
       </button>
     </div>
   );
@@ -169,7 +157,7 @@ function Overview() {
     <div>
       <Header
         title="Platform Billing"
-        sub={`geoSelfie SaaS · Base ${INR(PRICE)} per 100 seats · month of July 2026`}
+        sub={`geoSelfie SaaS · Base ${INR(PRICE)} for 300 seats · month of July 2026`}
       />
 
       <DemoControls />
@@ -325,7 +313,7 @@ function Companies() {
     <div>
       <Header
         title="Companies"
-        sub={`Charge ${INR(plans.basePrice)}/month for every 100 seats`}
+        sub={`Base price ${INR(plans.basePrice)}/month (includes up to 300 seats)`}
       />
       <Panel>
         <div className="table-wrap">
@@ -494,8 +482,8 @@ function PlansEditor() {
               <div className="mt-3 text-3xl font-bold">{INR(total)}</div>
               <div className="muted mt-1 text-sm">
                 {tier.months === 1
-                  ? "per 100 seats, billed every month"
-                  : `${INR(pm)}/mo per 100 seats · billed every ${tier.months} months`}
+                  ? `for up to ${(tier.includedSeats || (tier.id === 'monthly' ? 300 : tier.id === 'sixmonth' ? 1400 : 3800)).toLocaleString()} seats, billed every month`
+                  : `${INR(pm)}/mo for up to ${(tier.includedSeats || (tier.id === 'monthly' ? 300 : tier.id === 'sixmonth' ? 1400 : 3800)).toLocaleString()} seats · billed every ${tier.months} months`}
               </div>
               {saved > 0 && (
                 <div className="mt-2 text-xs text-emerald-300">

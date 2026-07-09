@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useNotifications } from "@/lib/notifications";
 import { company } from "@/lib/mock";
+import { useTenants } from "@/lib/tenants";
 
 export interface NavItem {
   key: string;
@@ -32,7 +33,7 @@ export default function DashboardShell({
   nav: NavItem[];
   active: string;
   onSelect: (k: string) => void;
-  requiredKind: "admin" | "employee";
+  requiredKind: "admin" | "hr" | "employee";
   children: React.ReactNode;
 }) {
   const { session, logout, ready } = useAuth();
@@ -42,6 +43,8 @@ export default function DashboardShell({
   const { items: notifs, unread, markRead, markAllRead } = useNotifications(
     session?.role,
   );
+  const { tenants } = useTenants();
+  const tenant = tenants.find((t) => t.id === "t1") || tenants[0];
 
   // ── Role enforcement ───────────────────────────────────────────────
   useEffect(() => {
@@ -52,12 +55,7 @@ export default function DashboardShell({
     }
     // Admin has access everywhere; otherwise enforce role match
     if (session.role !== "admin") {
-      const allowed =
-        (requiredKind === "admin" && session.role === "hr") ||
-        (requiredKind === "employee" && session.role === "employee") ||
-        // HR uses "admin" requiredKind on its own page
-        (requiredKind === "admin" && session.role === "hr");
-      if (!allowed && requiredKind !== "admin") {
+      if (session.role !== requiredKind) {
         router.replace("/login");
       }
     }
@@ -150,14 +148,16 @@ export default function DashboardShell({
 
           <div className="flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-xs font-bold">
-              {company.slug}
+              {session.role === "admin" ? "GEO" : (tenant ? tenant.name.substring(0, 3).toUpperCase() : "CMP")}
             </span>
             <div className="hidden sm:block">
               <div className="text-sm font-medium leading-tight">
-                {session.companyName || company.name}
+                {session.role === "admin" ? "geoSelfie Inc." : (session.companyName || tenant?.name || company.name)}
               </div>
               <div className="muted text-xs">
-                {company.plan} · {company.employees} employees
+                {session.role === "admin"
+                  ? "Platform Administration"
+                  : `Pro · ${tenant?.activeUsers || company.employees} employees`}
               </div>
             </div>
           </div>

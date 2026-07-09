@@ -20,14 +20,17 @@ import {
   Laptop,
   Megaphone,
   X,
+  Pencil,
 } from "lucide-react";
 import DashboardShell, { type NavItem } from "@/components/DashboardShell";
 import FaceScan from "@/components/FaceScan";
 import Profile from "@/components/Profile";
-import { StatCard, Panel, Pill } from "@/components/ui";
+import { StatCard, Panel, Pill, Avatar } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 import { useFaceEnrollment } from "@/lib/face";
 import { useBroadcasts } from "@/lib/broadcast";
+import { useLeaves } from "@/lib/leaves";
+import { useNotifications } from "@/lib/notifications";
 import { useGeofenceSettings, calculateDistance } from "@/lib/geofence";
 import {
   myMonth,
@@ -35,6 +38,8 @@ import {
   mySalarySlips,
   INR,
   to12h,
+  getWeekDates,
+  employees
 } from "@/lib/mock";
 
 const nav: NavItem[] = [
@@ -69,6 +74,8 @@ type Step = 0 | 1 | 2 | 3; // idle, face, gps, done
 
 function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
   const { session } = useAuth();
+  const me = employees.find(e => e.name === session?.name) || employees[0];
+  const dow = getWeekDates();
   const { enrolled, descriptor } = useFaceEnrollment(session?.email ?? "guest");
   const { items: broadcasts } = useBroadcasts();
   const { config } = useGeofenceSettings();
@@ -354,6 +361,46 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
           />
         </div>
       </div>
+
+      {/* Shared Attendance Timeline Row */}
+      <Panel className="mt-4">
+        <h2 className="mb-4 text-sm font-medium text-slate-300">My Weekly Attendance</h2>
+        <div className="flex items-center gap-4 rounded-xl border border-white/5 bg-white/5 p-3 text-sm">
+          <div className="flex items-center gap-3 w-40 flex-shrink-0">
+            <Avatar name={me.name} hue={me.avatarHue} />
+            <div>
+              <div className="font-medium">{me.name}</div>
+              <div className="text-[10px] text-slate-400">{me.memberId}</div>
+            </div>
+          </div>
+          <div className="flex gap-2 sm:gap-4 overflow-x-auto hide-scrollbar border-l border-white/10 pl-4 py-1 flex-1">
+            {dow.map((d, i) => (
+              <div key={i} className="flex flex-col items-center gap-2 min-w-[32px]">
+                <span className="text-center text-[10px] leading-tight text-slate-400">
+                  {d.split(" ")[0]}<br/>
+                  <span className="text-white/30">{d.split(" ")[1]}</span>
+                </span>
+                <div
+                  className="h-4 w-4 rounded-[5px] flex-shrink-0"
+                  style={{ background: statusColor[me.week[i]] }}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="ml-auto w-32 flex-shrink-0 border-l border-white/10 pl-4">
+            <div className="mb-1.5 flex justify-between text-xs">
+              <span className="text-slate-400">This Month</span>
+              <span>{me.attendancePct}%</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
+              <div
+                className="h-full bg-emerald-400"
+                style={{ width: `${me.attendancePct}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </Panel>
     </div>
   );
 }
@@ -447,17 +494,50 @@ function CheckRow({
 const dowNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function Calendar() {
-  const cells = myMonth();
-  const firstDow = new Date(2026, 6, 1).getDay();
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  
+  const [year, setYear] = useState(currentYear);
+  const [month, setMonth] = useState(currentMonth);
+
+  const cells = myMonth(year, month);
+  const firstDow = new Date(year, month, 1).getDay();
   const present = cells.filter((c) => c.status === "present").length;
   const half = cells.filter((c) => c.status === "half").length;
   const absent = cells.filter((c) => c.status === "absent").length;
   const leave = cells.filter((c) => c.status === "leave").length;
 
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight">My Attendance</h1>
-      <p className="muted text-sm">July 2026</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">My Attendance</h1>
+          <p className="muted text-sm">{monthNames[month]} {year}</p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <select 
+            value={month} 
+            onChange={(e) => setMonth(Number(e.target.value))}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm outline-none focus:border-indigo-500 transition-colors"
+          >
+            {monthNames.map((m, i) => (
+              <option key={m} value={i} className="bg-slate-800">{m}</option>
+            ))}
+          </select>
+          <select 
+            value={year} 
+            onChange={(e) => setYear(Number(e.target.value))}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm outline-none focus:border-indigo-500 transition-colors"
+          >
+            {Array.from({length: 5}).map((_, i) => (
+              <option key={i} value={currentYear - i} className="bg-slate-800">{currentYear - i}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-3">
         <Panel title="Calendar" className="lg:col-span-2">
@@ -531,12 +611,79 @@ function Legend({
 }
 
 function Leave() {
+  const { session } = useAuth();
+  const { leaves, addLeave, updateLeave } = useLeaves();
+  const { push } = useNotifications();
+  const myLeaves = leaves.filter((l) => l.employeeName === session?.name);
+  
   const [type, setType] = useState("Casual");
-  const [sent, setSent] = useState(false);
+  const [days, setDays] = useState(1);
+  const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
+  const [reason, setReason] = useState("");
+  
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editType, setEditType] = useState("");
+  const [editDays, setEditDays] = useState(1);
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editReason, setEditReason] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const [filter, setFilter] = useState("All");
+  
+  const handleSubmit = () => {
+    if (!reason || !session) return;
+    const end = new Date(startDate);
+    end.setDate(end.getDate() + days - 1);
+    addLeave({
+      employeeId: "emp_curr",
+      employeeName: session.name,
+      type,
+      startDate,
+      endDate: end.toISOString().split("T")[0],
+      days,
+      reason,
+      documents: [],
+    });
+    setReason("");
+  };
+
+  const startEdit = (leave: any) => {
+    setEditingId(leave.id);
+    setEditType(leave.type);
+    setEditDays(leave.days);
+    setEditStartDate(leave.startDate);
+    setEditReason(leave.reason);
+  };
+
+  const saveEdit = (leave: any) => {
+    const end = new Date(editStartDate);
+    end.setDate(end.getDate() + editDays - 1);
+    updateLeave(
+      leave.id,
+      { type: editType, days: editDays, startDate: editStartDate, endDate: end.toISOString().split("T")[0], reason: editReason },
+      session?.name || "Employee",
+      "employee"
+    );
+    push({
+      type: "leave_edited",
+      title: `Leave Request Edited`,
+      body: `${session?.name || "Employee"} updated Leave Request #${leave.id}`,
+      roles: ["hr", "admin"],
+    });
+    setEditingId(null);
+  };
+
+  const canEdit = (appliedAt: string) => {
+    const diffMins = (Date.now() - new Date(appliedAt).getTime()) / (1000 * 60);
+    return diffMins <= 30;
+  };
+
+  const filtered = myLeaves.filter(l => filter === "All" ? true : filter.toLowerCase() === l.status);
+
   return (
     <div>
       <h1 className="text-2xl font-semibold tracking-tight">Leave</h1>
-      <p className="muted text-sm">Balance & requests</p>
+      <p className="muted text-sm">Balance & history</p>
       <div className="mt-5 grid gap-4 lg:grid-cols-3">
         <Panel title="Leave balance">
           {[
@@ -550,54 +697,223 @@ function Leave() {
             </div>
           ))}
         </Panel>
+        
         <Panel title="Request leave" className="lg:col-span-2">
-          {sent ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center gap-2 text-emerald-300"
-            >
-              <CheckCircle2 size={18} /> Request submitted — pending manager
-              approval.
-            </motion.div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm">
+              <span className="muted mb-1 block text-xs">Type</span>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+              >
+                <option>Casual</option>
+                <option>Sick</option>
+                <option>Earned</option>
+              </select>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
               <label className="text-sm">
-                <span className="muted mb-1 block text-xs">Type</span>
-                <select
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
-                >
-                  <option>Casual</option>
-                  <option>Sick</option>
-                  <option>Earned</option>
-                </select>
+                <span className="muted mb-1 block text-xs">Start Date</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none [color-scheme:dark]"
+                />
               </label>
               <label className="text-sm">
                 <span className="muted mb-1 block text-xs">Days</span>
                 <input
-                  defaultValue={1}
                   type="number"
+                  min="1"
+                  value={days}
+                  onChange={(e) => setDays(parseInt(e.target.value) || 1)}
                   className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
                 />
               </label>
-              <label className="text-sm sm:col-span-2">
-                <span className="muted mb-1 block text-xs">Reason</span>
-                <input
-                  placeholder="Reason…"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
-                />
-              </label>
-              <button
-                onClick={() => setSent(true)}
-                className="rounded-xl bg-indigo-500 py-2.5 font-medium text-white hover:bg-indigo-400 sm:col-span-2"
-              >
-                Submit request
-              </button>
             </div>
-          )}
+            <label className="text-sm sm:col-span-2">
+              <span className="muted mb-1 block text-xs">Reason</span>
+              <input
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Family function, medical appointment…"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+              />
+            </label>
+            <button
+              onClick={handleSubmit}
+              disabled={!reason}
+              className="rounded-xl bg-indigo-500 py-2.5 font-medium text-white hover:bg-indigo-400 disabled:opacity-50 sm:col-span-2"
+            >
+              Submit request
+            </button>
+          </div>
         </Panel>
+
+        <div className="lg:col-span-3 mt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 className="text-lg font-semibold tracking-tight">Leave History</h2>
+            <div className="flex gap-2">
+              {["All", "Pending", "Approved", "Rejected", "Cancelled"].map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                    filter === f ? "bg-white text-black" : "bg-white/10 text-white hover:bg-white/20"
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-3">
+            {filtered.length === 0 ? (
+              <div className="glass rounded-2xl p-6 text-center text-sm text-slate-400">
+                No leave requests found.
+              </div>
+            ) : (
+              filtered.map(l => (
+                <div key={l.id} className="glass rounded-2xl p-4 transition-all">
+                  {editingId === l.id ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <h3 className="sm:col-span-2 font-medium text-indigo-300 flex items-center gap-2">
+                        <Pencil size={16} /> Editing Request {l.id}
+                      </h3>
+                      <label className="text-sm">
+                        <span className="muted mb-1 block text-xs">Type</span>
+                        <select
+                          value={editType}
+                          onChange={(e) => setEditType(e.target.value)}
+                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+                        >
+                          <option>Casual</option>
+                          <option>Sick</option>
+                          <option>Earned</option>
+                        </select>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="text-sm">
+                          <span className="muted mb-1 block text-xs">Start Date</span>
+                          <input
+                            type="date"
+                            value={editStartDate}
+                            onChange={(e) => setEditStartDate(e.target.value)}
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none [color-scheme:dark]"
+                          />
+                        </label>
+                        <label className="text-sm">
+                          <span className="muted mb-1 block text-xs">Days</span>
+                          <input
+                            type="number"
+                            min="1"
+                            value={editDays}
+                            onChange={(e) => setEditDays(parseInt(e.target.value) || 1)}
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+                          />
+                        </label>
+                      </div>
+                      <label className="text-sm sm:col-span-2">
+                        <span className="muted mb-1 block text-xs">Reason</span>
+                        <input
+                          value={editReason}
+                          onChange={(e) => setEditReason(e.target.value)}
+                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+                        />
+                      </label>
+                      <div className="sm:col-span-2 flex justify-end gap-2 mt-2">
+                        <button onClick={() => setEditingId(null)} className="rounded-lg bg-white/10 px-4 py-2 text-sm hover:bg-white/20">Cancel</button>
+                        <button onClick={() => saveEdit(l)} className="rounded-lg bg-indigo-500 px-4 py-2 text-sm text-white hover:bg-indigo-400">Save Changes</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold text-white">{l.type} Leave</span>
+                            <span className="muted text-xs">· {l.id}</span>
+                            {l.versions.length > 0 && (
+                              <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-bold text-indigo-300">
+                                EDITED {l.versions.length} TIME{l.versions.length > 1 ? 'S' : ''}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-slate-300 mb-2">
+                            {l.startDate} &rarr; {l.endDate} ({l.days} days)
+                          </div>
+                          <div className="text-sm text-slate-400">
+                            &ldquo;{l.reason}&rdquo;
+                          </div>
+                          <div className="text-xs text-slate-500 mt-2">
+                            Submitted on {new Date(l.appliedAt).toLocaleString()}
+                            {l.versions.length > 0 && ` · Last edited ${new Date(l.versions[l.versions.length - 1].editedAt).toLocaleString()}`}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <Pill tone={l.status === 'approved' ? '#34d399' : l.status === 'rejected' ? '#f87171' : l.status === 'cancelled' ? '#94a3b8' : '#fbbf24'}>
+                            {l.status.toUpperCase()}
+                          </Pill>
+                          {l.status === 'pending' && canEdit(l.appliedAt) && (
+                            <button
+                              onClick={() => startEdit(l)}
+                              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mt-1 font-medium bg-indigo-500/10 px-2 py-1 rounded-md"
+                            >
+                              <Pencil size={12} /> Edit ({(30 - Math.floor((Date.now() - new Date(l.appliedAt).getTime()) / (1000 * 60)))}m left)
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {l.hrRemarks && (
+                        <div className="mt-3 rounded-xl bg-emerald-500/10 p-3 text-sm text-emerald-200 border border-emerald-500/20">
+                          <strong>HR Remark:</strong> {l.hrRemarks}
+                        </div>
+                      )}
+
+                      {l.versions.length > 0 && (
+                        <div className="mt-4 pt-3 border-t border-white/5">
+                          <button
+                            onClick={() => setExpandedId(expandedId === l.id ? null : l.id)}
+                            className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
+                          >
+                            {expandedId === l.id ? "Hide" : "Show"} version history ({l.versions.length})
+                          </button>
+                          
+                          <AnimatePresence>
+                            {expandedId === l.id && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="mt-3 space-y-2 pl-3 border-l-2 border-white/10">
+                                  {[...l.versions].reverse().map((v, idx) => (
+                                    <div key={v.id} className="text-xs text-slate-400">
+                                      <div className="font-medium text-slate-300">Version {l.versions.length - idx} <span className="muted font-normal">· {new Date(v.editedAt).toLocaleString()}</span></div>
+                                      <div className="mt-1">{v.type} | {v.startDate} &rarr; {v.endDate} ({v.days}d)</div>
+                                      <div>Reason: {v.reason}</div>
+                                    </div>
+                                  ))}
+                                  <div className="text-xs text-slate-400 opacity-60">
+                                    <div className="font-medium text-slate-300">Original Submission <span className="font-normal">· {new Date(l.appliedAt).toLocaleString()}</span></div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

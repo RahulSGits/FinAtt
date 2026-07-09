@@ -6,6 +6,36 @@ export type Role = "admin" | "hr" | "employee";
 
 export type Status = "present" | "absent" | "half" | "leave" | "off";
 
+export function getWeekDates() {
+  const dates = [];
+  const curr = new Date();
+  const first = curr.getDate() - curr.getDay() + 1; // Monday
+  const abbr = ["Su", "M", "Tu", "W", "Th", "F", "Sa"];
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(curr.setDate(first + i));
+    const dow = abbr[day.getDay()];
+    const date = day.getDate().toString().padStart(2, "0");
+    dates.push(`${dow} ${date}`);
+  }
+  return dates;
+}
+
+export const getAttendancePct = (week: Status[]) => {
+  const isWorkingDay = (s: Status, i: number) => i !== 6 && s !== "off";
+  const workingDays = week.filter(isWorkingDay);
+  const presents = workingDays.filter(s => s === "present" || s === "half").length;
+  const totalDays = workingDays.length || 1;
+  return Math.round((presents / totalDays) * 100);
+};
+
+export function updateEmployeeAttendanceGlobal(empId: string, dayIndex: number, newStatus: Status) {
+  const emp = employees.find((e) => e.id === empId);
+  if (emp) {
+    emp.week[dayIndex] = newStatus;
+    emp.attendancePct = getAttendancePct(emp.week);
+  }
+}
+
 export const INR = (n: number) =>
   "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
 
@@ -58,14 +88,14 @@ const wk = (s: string): Status[] =>
   );
 
 export const employees: Employee[] = [
-  { id: "e1", name: "Asha Nair", memberId: "GEO-0421", avatarHue: 260, department: "Operations", designation: "Team Lead", site: "Head Office", shift: "Morning", status: "active", today: "present", checkIn: "09:04", monthPresent: 20, monthHours: 162, attendancePct: 96, faceEnrolled: true, salary: 68000, week: wk("PPHPAOP") },
-  { id: "e2", name: "Rahul Verma", memberId: "GEO-0422", avatarHue: 200, department: "Sales", designation: "Executive", site: "Head Office", shift: "Morning", status: "active", today: "present", checkIn: "08:58", monthPresent: 21, monthHours: 168, attendancePct: 98, faceEnrolled: true, salary: 54000, week: wk("PPPPPOP") },
-  { id: "e3", name: "Meera Iyer", memberId: "GEO-0423", avatarHue: 320, department: "Logistics", designation: "Coordinator", site: "Warehouse", shift: "Evening", status: "active", today: "half", checkIn: "14:10", monthPresent: 17, monthHours: 128, attendancePct: 81, faceEnrolled: true, salary: 46000, week: wk("PHPAPOH") },
-  { id: "e4", name: "David Chen", memberId: "GEO-0424", avatarHue: 150, department: "Engineering", designation: "Sr. Engineer", site: "Tech Park", shift: "Flexible", status: "active", today: "present", checkIn: "10:02", monthPresent: 19, monthHours: 158, attendancePct: 90, faceEnrolled: true, salary: 96000, week: wk("PPPHPOP") },
-  { id: "e5", name: "Sara Khan", memberId: "GEO-0425", avatarHue: 20, department: "HR", designation: "HR Executive", site: "Head Office", shift: "Morning", status: "active", today: "leave", monthPresent: 18, monthHours: 144, attendancePct: 86, faceEnrolled: true, salary: 58000, week: wk("PPLLPOP") },
-  { id: "e6", name: "Tom Wright", memberId: "GEO-0426", avatarHue: 45, department: "Finance", designation: "Analyst", site: "Head Office", shift: "Morning", status: "active", today: "absent", monthPresent: 15, monthHours: 120, attendancePct: 71, faceEnrolled: false, salary: 52000, week: wk("PAPAPOA") },
-  { id: "e7", name: "Priya Das", memberId: "GEO-0427", avatarHue: 285, department: "Operations", designation: "Executive", site: "Plant 2", shift: "Night", status: "active", today: "present", checkIn: "22:03", monthPresent: 22, monthHours: 176, attendancePct: 100, faceEnrolled: true, salary: 49000, week: wk("PPPPPOP") },
-  { id: "e8", name: "Leo Martin", memberId: "GEO-0428", avatarHue: 175, department: "Engineering", designation: "Engineer", site: "Tech Park", shift: "Flexible", status: "inactive", today: "off", monthPresent: 12, monthHours: 96, attendancePct: 60, faceEnrolled: true, salary: 72000, week: wk("POOAPOO") },
+  { id: "e1", name: "Asha Nair", memberId: "GEO-0421", avatarHue: 260, department: "Operations", designation: "Team Lead", site: "Head Office", shift: "Morning", status: "active", today: "present", checkIn: "09:04", monthPresent: 20, monthHours: 162, attendancePct: getAttendancePct(wk("PPHPAOP")), faceEnrolled: true, salary: 68000, week: wk("PPHPAOP") },
+  { id: "e2", name: "Rahul Verma", memberId: "GEO-0422", avatarHue: 200, department: "Sales", designation: "Executive", site: "Head Office", shift: "Morning", status: "active", today: "present", checkIn: "08:58", monthPresent: 21, monthHours: 168, attendancePct: getAttendancePct(wk("PPPPPOP")), faceEnrolled: true, salary: 54000, week: wk("PPPPPOP") },
+  { id: "e3", name: "Meera Iyer", memberId: "GEO-0423", avatarHue: 320, department: "Logistics", designation: "Coordinator", site: "Warehouse", shift: "Evening", status: "active", today: "half", checkIn: "14:10", monthPresent: 17, monthHours: 128, attendancePct: getAttendancePct(wk("PHPAPOH")), faceEnrolled: true, salary: 46000, week: wk("PHPAPOH") },
+  { id: "e4", name: "David Chen", memberId: "GEO-0424", avatarHue: 150, department: "Engineering", designation: "Sr. Engineer", site: "Tech Park", shift: "Flexible", status: "active", today: "present", checkIn: "10:02", monthPresent: 19, monthHours: 158, attendancePct: getAttendancePct(wk("PPPHPOP")), faceEnrolled: true, salary: 96000, week: wk("PPPHPOP") },
+  { id: "e5", name: "Sara Khan", memberId: "GEO-0425", avatarHue: 20, department: "HR", designation: "HR Executive", site: "Head Office", shift: "Morning", status: "active", today: "leave", monthPresent: 18, monthHours: 144, attendancePct: getAttendancePct(wk("PPLLPOP")), faceEnrolled: true, salary: 58000, week: wk("PPLLPOP") },
+  { id: "e6", name: "Tom Wright", memberId: "GEO-0426", avatarHue: 45, department: "Finance", designation: "Analyst", site: "Head Office", shift: "Morning", status: "active", today: "absent", monthPresent: 15, monthHours: 120, attendancePct: getAttendancePct(wk("PAPAPOA")), faceEnrolled: false, salary: 52000, week: wk("PAPAPOA") },
+  { id: "e7", name: "Priya Das", memberId: "GEO-0427", avatarHue: 285, department: "Operations", designation: "Executive", site: "Plant 2", shift: "Night", status: "active", today: "present", checkIn: "22:03", monthPresent: 22, monthHours: 176, attendancePct: getAttendancePct(wk("PPPPPOP")), faceEnrolled: true, salary: 49000, week: wk("PPPPPOP") },
+  { id: "e8", name: "Leo Martin", memberId: "GEO-0428", avatarHue: 175, department: "Engineering", designation: "Engineer", site: "Tech Park", shift: "Flexible", status: "inactive", today: "off", monthPresent: 12, monthHours: 96, attendancePct: getAttendancePct(wk("POOAPOO")), faceEnrolled: true, salary: 72000, week: wk("POOAPOO") },
 ];
 
 export const kpis = {
@@ -237,13 +267,27 @@ export const deptSplit = [
 // ---------------------------------------------------------------------------
 
 export type DayCell = { day: number; status: Status | "none"; hours?: string };
-export function myMonth(): DayCell[] {
+export function myMonth(year: number, month: number): DayCell[] {
   const pattern: Status[] = ["present", "present", "half", "present", "absent", "leave", "present"];
   const cells: DayCell[] = [];
-  for (let d = 1; d <= 31; d++) {
-    const wd = new Date(2026, 6, d).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const currentDate = new Date().getDate();
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const wd = new Date(year, month, d).getDay();
     if (wd === 0) { cells.push({ day: d, status: "off" }); continue; }
-    if (d > 24) { cells.push({ day: d, status: "none" }); continue; }
+    
+    if (year === currentYear && month === currentMonth && d > currentDate) { 
+      cells.push({ day: d, status: "none" }); 
+      continue; 
+    }
+    if (year > currentYear || (year === currentYear && month > currentMonth)) {
+      cells.push({ day: d, status: "none" }); 
+      continue; 
+    }
+
     const s = pattern[d % pattern.length];
     cells.push({ day: d, status: s, hours: s === "present" ? "8h 12m" : s === "half" ? "3h 40m" : undefined });
   }

@@ -13,7 +13,8 @@ export type NType =
   | "payroll_edited"
   | "face_reset"
   | "broadcast"
-  | "profile_updated";
+  | "profile_updated"
+  | "leave_edited";
 
 export interface Notification {
   id: string;
@@ -24,6 +25,7 @@ export interface Notification {
   roles: string[];
   at: string;
   read: boolean;
+  targetUserId?: string;
 }
 
 const KEY = "gs_notifications";
@@ -37,13 +39,23 @@ function readAll(): Notification[] {
   }
 }
 
-export function useNotifications(role?: string) {
+export function useNotifications(role?: string, userId?: string) {
   const [items, setItems] = useState<Notification[]>([]);
 
   useEffect(() => {
     const load = () => {
       const all = readAll();
-      setItems(role ? all.filter((n) => n.roles.includes(role) || n.roles.includes("all")) : all);
+      setItems(
+        all.filter((n) => {
+          if (n.targetUserId) {
+            return n.targetUserId === userId;
+          }
+          if (role) {
+            return n.roles.includes(role) || n.roles.includes("all");
+          }
+          return true;
+        })
+      );
     };
     load();
     window.addEventListener("storage", load);

@@ -31,6 +31,8 @@ import {
   Filter,
   MapPin,
   Search,
+  Download,
+  Printer,
 } from "lucide-react";
 import {
   Area,
@@ -44,6 +46,7 @@ import DashboardShell, { type NavItem } from "@/components/DashboardShell";
 import Profile from "@/components/Profile";
 import { StatCard, Panel, Avatar, StatusBadge, Pill } from "@/components/ui";
 import { useBroadcasts } from "@/lib/broadcast";
+import { useLeaves } from "@/lib/leaves";
 import { useNotifications } from "@/lib/notifications";
 import {
   useSubscriptionPlans,
@@ -61,6 +64,8 @@ import {
   leaves as seedLeaves,
   statusColor,
   workMode,
+  getWeekDates,
+  updateEmployeeAttendanceGlobal,
   type Employee,
   type Status,
   type PayrollRow,
@@ -97,13 +102,13 @@ export default function HrPage() {
       nav={nav}
       active={active}
       onSelect={setActive}
-      requiredKind="admin"
+      requiredKind="hr"
     >
       {active === "overview" && <Overview />}
       {active === "employees" && (
         <EmployeesView people={people} setPeople={setPeople} />
       )}
-      {active === "attendance" && <Attendance people={people} />}
+      {active === "attendance" && <Attendance people={people} setPeople={setPeople} />}
       {active === "payroll" && <Payroll />}
       {active === "leave" && <LeaveView />}
       {active === "broadcast" && <BroadcastView />}
@@ -634,9 +639,44 @@ function Labeled({
 
 // ── Attendance ───────────────────────────────────────────────────────────
 
-const dow = ["M", "T", "W", "T", "F", "S", "S"];
+const dow = getWeekDates();
+function Attendance({ people, setPeople }: { people: Employee[]; setPeople: React.Dispatch<React.SetStateAction<Employee[]>> }) {
+  const { push } = useNotifications();
+  const [editingAttendance, setEditingAttendance] = useState<{empId: string; dayIndex: number} | null>(null);
 
-function Attendance({ people }: { people: Employee[] }) {
+  const updateAttendance = (empId: string, dayIndex: number, newStatus: Status) => {
+    setPeople((prev) => {
+      const newPeople = prev.map((p) => {
+        if (p.id === empId) {
+          const newWeek = [...p.week];
+          newWeek[dayIndex] = newStatus;
+          const isWorkingDay = (s: Status, i: number) => i !== 6 && s !== "off";
+          const workingDays = newWeek.filter(isWorkingDay);
+          const presents = workingDays.filter(s => s === "present" || s === "half").length;
+          const totalDays = workingDays.length || 1;
+          const attendancePct = Math.round((presents / totalDays) * 100);
+          
+          updateEmployeeAttendanceGlobal(empId, dayIndex, newStatus);
+
+          return { ...p, week: newWeek as Status[], attendancePct };
+        }
+        return p;
+      });
+      
+      const emp = newPeople.find(p => p.id === empId);
+      if (emp) {
+        push({
+          type: "leave_edited", // Reuse icon
+          title: "Attendance Updated",
+          body: `HR has marked your attendance as ${newStatus} for ${dow[dayIndex]}`,
+          roles: ["employee"],
+          targetUserId: emp.name
+        });
+      }
+      return newPeople;
+    });
+    setEditingAttendance(null);
+  };
   const [deptFilter, setDeptFilter] = useState("all");
   const [monthFilter, setMonthFilter] = useState("07"); // July
   const [yearFilter, setYearFilter] = useState("2026");
@@ -651,8 +691,37 @@ function Attendance({ people }: { people: Employee[] }) {
     });
   }, [people, deptFilter]);
 
+  const downloadCSV = () => {
+    const headers = ["Employee ID", "Name", "Department", ...dow, "This Month"];
+    const rows = filteredPeople.map((e) => {
+      const statuses = e.week.map(s => s === "present" ? "P" : s === "absent" ? "A" : s === "half" ? "H" : s === "leave" ? "LV" : "OFF");
+      return [e.memberId, e.name, e.department, ...statuses, `${e.attendancePct}%`];
+    });
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(r => r.map(cell => `"${cell}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `attendance_report_${yearFilter}_${monthFilter}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div>
+      {/* Invisible backdrop to close dropdown */}
+      {editingAttendance && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setEditingAttendance(null)} 
+        />
+      )}
       <Header
         title="Attendance"
         sub="Weekly presence & monthly rate per member"
@@ -701,6 +770,24 @@ function Attendance({ people }: { people: Employee[] }) {
           <option value="thu">Thursday</option>
           <option value="fri">Friday</option>
         </select>
+        
+        {/* Export Buttons */}
+        <div className="ml-auto flex items-center gap-2 print-hidden">
+          <button
+            onClick={downloadCSV}
+            className="flex items-center gap-2 rounded-lg bg-indigo-500/20 px-3 py-1.5 text-sm font-medium text-indigo-300 hover:bg-indigo-500/30 transition-colors"
+          >
+            <Download size={14} />
+            CSV
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium hover:bg-white/10 transition-colors"
+          >
+            <Printer size={14} />
+            PDF
+          </button>
+        </div>
       </div>
       <Panel>
         <div className="space-y-1">
@@ -708,8 +795,9 @@ function Attendance({ people }: { people: Employee[] }) {
             <span>Member</span>
             <span className="hidden sm:flex gap-1.5">
               {dow.map((d, i) => (
-                <span key={i} className="w-4 text-center">
-                  {d}
+                <span key={i} className="w-8 text-center text-[10px] leading-tight">
+                  {d.split(" ")[0]}<br/>
+                  <span className="text-white/50">{d.split(" ")[1]}</span>
                 </span>
               ))}
             </span>
@@ -729,14 +817,33 @@ function Attendance({ people }: { people: Employee[] }) {
               </div>
               <div className="hidden sm:flex gap-1.5">
                 {e.week.map((s, i) => (
-                  <span
-                    key={i}
-                    className="h-4 w-4 rounded-[5px]"
-                    style={{
-                      background: `${statusColor[s]}${s === "off" ? "55" : "ee"}`,
-                    }}
-                    title={s}
-                  />
+                  <div key={i} className="relative flex justify-center w-8">
+                    <button
+                      onClick={() => setEditingAttendance({ empId: e.id, dayIndex: i })}
+                      className="h-4 w-4 rounded-[5px] cursor-pointer hover:ring-2 ring-white/30 transition-all block"
+                      style={{
+                        background: `${statusColor[s]}${s === "off" ? "55" : "ee"}`,
+                      }}
+                      title={`Click to edit (${s})`}
+                    />
+                    {editingAttendance?.empId === e.id && editingAttendance?.dayIndex === i && (
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-slate-800 border border-white/10 rounded-lg shadow-xl p-1 z-50 flex flex-col gap-1 w-28">
+                        {(["present", "absent", "half", "leave", "off"] as Status[]).map((status) => (
+                          <button
+                            key={status}
+                            onClick={() => updateAttendance(e.id, i, status)}
+                            className="text-left px-2 py-1.5 text-xs hover:bg-white/10 rounded flex items-center justify-between transition-colors"
+                          >
+                            <span className="capitalize">{status}</span>
+                            <span
+                              className="h-2 w-2 rounded-full"
+                              style={{ background: statusColor[status] }}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
               <div className="flex items-center justify-end gap-3">
@@ -1044,50 +1151,183 @@ function Payroll() {
 // ── Leave ────────────────────────────────────────────────────────────────
 
 function LeaveView() {
-  const [rows, setRows] = useState(seedLeaves);
-  function decide(id: string, status: "approved" | "rejected") {
-    setRows((r) => r.map((x) => (x.id === id ? { ...x, status } : x)));
-  }
+  const { leaves, updateStatus } = useLeaves();
+  const { push } = useNotifications();
+  const [filter, setFilter] = useState("All");
+  const [dateFilter, setDateFilter] = useState("All Time");
+  const [remarks, setRemarks] = useState<Record<string, string>>({});
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const decide = (id: string, status: "approved" | "rejected" | "cancelled", employeeName: string) => {
+    updateStatus(id, status, "HR Admin", "hr", remarks[id]);
+    push({
+      type: "leave_edited",
+      title: `Leave ${status}`,
+      body: `HR ${status} leave request for ${employeeName}`,
+      roles: ["employee", "admin"],
+    });
+  };
+
+  const filteredLeaves = leaves.filter(l => {
+    if (filter !== "All" && l.status !== filter.toLowerCase()) return false;
+    if (dateFilter === "This Month") {
+      const d = new Date(l.appliedAt);
+      const now = new Date();
+      if (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear()) return false;
+    }
+    if (dateFilter === "Last 3 Months") {
+      const d = new Date(l.appliedAt);
+      const limit = new Date();
+      limit.setMonth(limit.getMonth() - 3);
+      if (d < limit) return false;
+    }
+    return true;
+  });
+
   return (
     <div>
-      <Header title="Leave Approvals" sub="Approve or reject employee time-off" />
+      <Header title="Leave Approvals" sub="Audit, approve or reject employee time-off" />
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 mt-2">
+        <div className="flex gap-2">
+          {["All", "Pending", "Approved", "Rejected", "Cancelled"].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                filter === f ? "bg-white text-black" : "bg-white/10 text-white hover:bg-white/20"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          {["All Time", "This Month", "Last 3 Months"].map(f => (
+            <button
+              key={f}
+              onClick={() => setDateFilter(f)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                dateFilter === f ? "bg-white text-black" : "bg-white/10 text-white hover:bg-white/20"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="grid gap-3">
-        {rows.map((l) => (
-          <div
-            key={l.id}
-            className="glass flex flex-wrap items-center gap-4 rounded-2xl p-4"
-          >
-            <div className="min-w-40 flex-1">
-              <div className="font-medium">{l.name}</div>
-              <div className="muted text-xs">
-                {l.type} · {l.reason}
-              </div>
-            </div>
-            <div className="muted text-sm">
-              {l.from} → {l.to} · {l.days}d
-            </div>
-            {l.status === "pending" ? (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => decide(l.id, "rejected")}
-                  className="flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-rose-300 hover:bg-white/5"
-                >
-                  <X size={14} /> Reject
-                </button>
-                <button
-                  onClick={() => decide(l.id, "approved")}
-                  className="flex items-center gap-1 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-sm text-emerald-300 hover:bg-emerald-500/30"
-                >
-                  <Check size={14} /> Approve
-                </button>
-              </div>
-            ) : (
-              <Pill tone={l.status === "approved" ? "#34d399" : "#f87171"}>
-                {l.status}
-              </Pill>
-            )}
+        {filteredLeaves.length === 0 ? (
+          <div className="glass rounded-2xl p-6 text-center text-sm text-slate-400">
+            No leave requests found.
           </div>
-        ))}
+        ) : (
+          filteredLeaves.map((l) => (
+            <div
+              key={l.id}
+              className="glass rounded-2xl p-4 transition-all"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-40 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-white">{l.employeeName}</span>
+                    <span className="muted text-xs">· {l.id}</span>
+                  </div>
+                  <div className="muted text-sm mt-1 mb-2">
+                    {l.type} Leave · {l.startDate} &rarr; {l.endDate} ({l.days}d)
+                  </div>
+                  <div className="text-sm text-slate-300">
+                    &ldquo;{l.reason}&rdquo;
+                  </div>
+                  <div className="text-xs text-slate-500 mt-2">
+                    Submitted {new Date(l.appliedAt).toLocaleString()}
+                  </div>
+                </div>
+                
+                <div className="flex flex-col items-end gap-3 min-w-48">
+                  {l.status === "pending" ? (
+                    <div className="w-full">
+                      <input
+                        placeholder="HR Remarks (optional)"
+                        value={remarks[l.id] || ""}
+                        onChange={(e) => setRemarks({...remarks, [l.id]: e.target.value})}
+                        className="w-full mb-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs outline-none"
+                      />
+                      <div className="flex gap-2 justify-end w-full">
+                        <button
+                          onClick={() => decide(l.id, "rejected", l.employeeName)}
+                          className="flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-rose-300 hover:bg-white/5"
+                        >
+                          <X size={14} /> Reject
+                        </button>
+                        <button
+                          onClick={() => decide(l.id, "approved", l.employeeName)}
+                          className="flex items-center gap-1 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-sm text-emerald-300 hover:bg-emerald-500/30"
+                        >
+                          <Check size={14} /> Approve
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-end">
+                      <Pill tone={l.status === "approved" ? "#34d399" : l.status === "rejected" ? "#f87171" : l.status === "cancelled" ? "#94a3b8" : "#fbbf24"}>
+                        {l.status.toUpperCase()}
+                      </Pill>
+                      {l.hrRemarks && (
+                        <div className="mt-2 text-xs text-emerald-300 text-right max-w-xs">
+                          <span className="muted">Remarks:</span> {l.hrRemarks}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="mt-4 pt-3 border-t border-white/5">
+                <button
+                  onClick={() => setExpandedId(expandedId === l.id ? null : l.id)}
+                  className="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-medium"
+                >
+                  {expandedId === l.id ? "Hide" : "Show"} Audit Trail & Timeline
+                </button>
+                
+                {expandedId === l.id && (
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-xl bg-black/20 p-3 border border-white/5">
+                      <h4 className="text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wider">Versions</h4>
+                      {l.versions.length === 0 ? (
+                        <div className="text-xs text-slate-500">No edits made.</div>
+                      ) : (
+                        <div className="space-y-3">
+                          {[...l.versions].reverse().map((v, idx) => (
+                            <div key={v.id} className="text-xs text-slate-400 border-l-2 border-indigo-500/30 pl-2">
+                              <div className="font-medium text-indigo-300">v{l.versions.length - idx} <span className="muted font-normal">· {new Date(v.editedAt).toLocaleString()}</span></div>
+                              <div className="mt-1">{v.startDate} &rarr; {v.endDate} ({v.days}d)</div>
+                              <div>{v.reason}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="rounded-xl bg-black/20 p-3 border border-white/5">
+                      <h4 className="text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wider">Activity Timeline</h4>
+                      <div className="space-y-3">
+                        {[...l.timeline].reverse().map((t) => (
+                          <div key={t.id} className="text-xs text-slate-400 border-l-2 border-emerald-500/30 pl-2">
+                            <div className="font-medium text-emerald-300">{t.action}</div>
+                            <div className="mt-0.5">by {t.actorName} ({t.actorRole})</div>
+                            <div className="muted">{new Date(t.timestamp).toLocaleString()}</div>
+                            {t.remarks && <div className="mt-1 text-slate-300">Note: {t.remarks}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

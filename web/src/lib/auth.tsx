@@ -22,7 +22,7 @@ interface AuthCtx {
   ready: boolean;
 }
 
-const SESSION_KEY = "gs_session";
+// Dynamic session key support for demo
 const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 function sanitise(raw: unknown): Session | null {
@@ -60,29 +60,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
 
+  const [sessionKey, setSessionKey] = useState("gs_session");
+
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mockRole = params.get("mock_role");
+    const key = mockRole ? `gs_session_${mockRole}` : "gs_session";
+    setSessionKey(key);
+
     try {
-      const raw = localStorage.getItem(SESSION_KEY);
+      const raw = localStorage.getItem(key);
       if (raw) {
         const parsed = sanitise(JSON.parse(raw));
         // eslint-disable-next-line react-hooks/set-state-in-effect
         if (parsed) setSession(parsed);
-        else localStorage.removeItem(SESSION_KEY); // expired or tampered
+        else localStorage.removeItem(key); // expired or tampered
       }
     } catch {
-      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(key);
     }
     setReady(true);
   }, []);
 
   const login = (s: Session) => {
     const stamped = { ...s, loginAt: new Date().toISOString() };
-    localStorage.setItem(SESSION_KEY, JSON.stringify(stamped));
+    localStorage.setItem(sessionKey, JSON.stringify(stamped));
     setSession(stamped);
   };
 
   const logout = () => {
-    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(sessionKey);
     setSession(null);
   };
 
@@ -91,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ) => {
     if (!session) return;
     const next = { ...session, ...patch };
-    localStorage.setItem(SESSION_KEY, JSON.stringify(next));
+    localStorage.setItem(sessionKey, JSON.stringify(next));
     setSession(next);
   };
 
