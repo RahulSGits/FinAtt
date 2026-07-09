@@ -4,13 +4,7 @@ export interface GeofenceConfig {
   lat: number;
   lng: number;
   radius: number;
-}
-
-export interface GeofenceHistory {
-  timestamp: number;
-  lat: number;
-  lng: number;
-  radius: number;
+  address?: string;
 }
 
 // Default to Connaught Place, New Delhi with 150m radius
@@ -21,7 +15,6 @@ const DEFAULT_CONFIG: GeofenceConfig = {
 };
 
 const STORAGE_KEY = "gs_geofence";
-const STORAGE_KEY_HISTORY = "gs_geofence_history";
 
 /**
  * Hook to manage geofence configuration.
@@ -29,7 +22,6 @@ const STORAGE_KEY_HISTORY = "gs_geofence_history";
  */
 export function useGeofenceSettings() {
   const [config, setConfig] = useState<GeofenceConfig>(DEFAULT_CONFIG);
-  const [history, setHistory] = useState<GeofenceHistory[]>([]);
 
   useEffect(() => {
     function load() {
@@ -41,18 +33,11 @@ export function useGeofenceSettings() {
           console.error("Failed to parse geofence config", e);
         }
       }
-      
-      const storedHist = localStorage.getItem(STORAGE_KEY_HISTORY);
-      if (storedHist) {
-        try {
-          setHistory(JSON.parse(storedHist));
-        } catch (e) {}
-      }
     }
     load();
 
     const handler = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY || e.key === STORAGE_KEY_HISTORY) load();
+      if (e.key === STORAGE_KEY) load();
     };
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
@@ -61,21 +46,8 @@ export function useGeofenceSettings() {
   const updateConfig = (newConfig: Partial<GeofenceConfig>) => {
     const updated = { ...config, ...newConfig };
     
-    // Create history entry
-    const entry: GeofenceHistory = {
-      timestamp: Date.now(),
-      lat: updated.lat,
-      lng: updated.lng,
-      radius: updated.radius,
-    };
-    
-    const updatedHistory = [entry, ...history];
-    
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(updatedHistory));
-    
     setConfig(updated);
-    setHistory(updatedHistory);
     
     window.dispatchEvent(
       new StorageEvent("storage", {
@@ -85,7 +57,7 @@ export function useGeofenceSettings() {
     );
   };
 
-  return { config, history, updateConfig };
+  return { config, updateConfig };
 }
 
 /**

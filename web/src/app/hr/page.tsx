@@ -1328,11 +1328,12 @@ const tooltipStyle = {
 // ── Geofence ─────────────────────────────────────────────────────────────
 
 function GeofenceView() {
-  const { config, history, updateConfig } = useGeofenceSettings();
+  const { config, updateConfig } = useGeofenceSettings();
   const [lat, setLat] = useState(config.lat.toString());
   const [lng, setLng] = useState(config.lng.toString());
   const [radius, setRadius] = useState(config.radius.toString());
   const [address, setAddress] = useState("");
+  const [locationName, setLocationName] = useState(config.address || "");
   const [searching, setSearching] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -1352,6 +1353,7 @@ function GeofenceView() {
       if (data && data.length > 0) {
         setLat(data[0].lat);
         setLng(data[0].lon);
+        setLocationName(data[0].display_name || address);
         setAddress("");
       } else {
         alert("Location not found");
@@ -1369,6 +1371,7 @@ function GeofenceView() {
       lat: center.lat,
       lng: center.lng,
       radius: numRadius,
+      address: locationName,
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -1479,49 +1482,6 @@ function GeofenceView() {
               Click map to move pin
             </div>
           </div>
-        </div>
-      </Panel>
-
-      <Panel className="mt-6" title="Configuration History">
-        <div className="p-6">
-          <p className="muted mb-4 text-sm">
-            Track when the company's geofence boundaries were modified.
-          </p>
-          {history.length === 0 ? (
-            <div className="rounded-xl border border-white/5 bg-white/5 p-8 text-center text-sm text-slate-400">
-              No recent changes found.
-            </div>
-          ) : (
-            <div className="table-wrap rounded-xl border border-white/5 bg-white/5">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-white/5 text-slate-400 bg-black/20">
-                    <th className="px-4 py-3 font-medium">Time of Change</th>
-                    <th className="px-4 py-3 font-medium">Coordinates</th>
-                    <th className="px-4 py-3 font-medium">Area (Radius)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {history.map((h, i) => (
-                    <tr key={i} className="hover:bg-white/5">
-                      <td className="px-4 py-3 text-slate-300">
-                        {new Date(h.timestamp).toLocaleString()}
-                        {i === 0 && <span className="ml-2 rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] uppercase text-indigo-300">Current</span>}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-slate-300">
-                        {h.lat.toFixed(6)}, {h.lng.toFixed(6)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-300">
-                          {h.radius} meters
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       </Panel>
     </div>
