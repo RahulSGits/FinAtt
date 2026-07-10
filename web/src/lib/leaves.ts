@@ -48,7 +48,6 @@ function seedData(): LeaveRequest[] {
   const now = new Date();
   
   // Create some mock data that makes sense relative to now
-  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
   const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   
@@ -130,6 +129,7 @@ export function useLeaves() {
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLeaves(read());
     const handler = () => setLeaves(read());
     window.addEventListener(EVT, handler);

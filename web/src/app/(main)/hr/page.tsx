@@ -61,7 +61,6 @@ import {
   employees as seedEmployees,
   trend,
   payroll as seedPayroll,
-  leaves as seedLeaves,
   statusColor,
   workMode,
   getWeekDates,

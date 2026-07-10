@@ -17,7 +17,6 @@ import {
   Clock,
   Tags,
   Eye,
-  UserRound,
   Save,
   Sparkles,
   Pencil,
@@ -37,7 +36,6 @@ import { useRouter } from "next/navigation";
 import DashboardShell, { type NavItem } from "@/components/DashboardShell";
 import Profile from "@/components/Profile";
 import { StatCard, Panel, Pill } from "@/components/ui";
-import { useAuth } from "@/lib/auth";
 import {
   useSubscriptionPlans,
   tierTotal,
@@ -52,7 +50,6 @@ import {
   PRICE,
   payments,
   activityFeed,
-  demoAccounts,
 } from "@/lib/mock";
 import { useTenants } from "@/lib/tenants";
 

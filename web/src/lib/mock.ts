@@ -153,7 +153,7 @@ export interface Tenant {
   nextBilling: string;
 }
 
-export const PRICE = 4999;
+export const PRICE = 8999;
 /** Six-month plan bills 6 months up front with a 20% discount. */
 export const SIX_MONTH = Math.round(PRICE * 6 * 0.8);
 /** Twelve-month plan bills 12 months up front with a 40% discount. */
@@ -185,11 +185,9 @@ export interface Payment {
 }
 
 export const payments: Payment[] = [
-  { id: "p1", company: "Pinnacle Mfg.", amount: PRICE, date: "03 Jul 2026", method: "UPI", status: "paid" },
-  { id: "p2", company: "Nimbus Retail", amount: PRICE, date: "05 Jul 2026", method: "Card", status: "paid" },
-  { id: "p3", company: "geoSelfie (Acme HR)", amount: PRICE, date: "01 Jul 2026", method: "UPI", status: "paid" },
-  { id: "p4", company: "Orbit Logistics", amount: PRICE, date: "02 Jul 2026", method: "Card", status: "failed" },
-  { id: "p5", company: "BlueLeaf Cafe", amount: PRICE, date: "12 Jul 2026", method: "NetBanking", status: "paid" },
+  { id: "p1", company: "geoSelfie (Acme HR)", amount: TWELVE_MONTH, date: "09 Jul 2026", method: "NetBanking", status: "paid" },
+  { id: "p2", company: "Pinnacle Mfg.", amount: SIX_MONTH, date: "03 Jul 2026", method: "Card", status: "paid" },
+  { id: "p3", company: "Nimbus Retail", amount: PRICE, date: "01 Jul 2026", method: "UPI", status: "paid" },
 ];
 
 export const revenueTrend = [

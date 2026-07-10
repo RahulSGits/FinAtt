@@ -29,7 +29,7 @@ import { StatCard, Panel, Pill, Avatar } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 import { useFaceEnrollment } from "@/lib/face";
 import { useBroadcasts } from "@/lib/broadcast";
-import { useLeaves } from "@/lib/leaves";
+import { useLeaves, type LeaveRequest } from "@/lib/leaves";
 import { useNotifications } from "@/lib/notifications";
 import { useGeofenceSettings, calculateDistance } from "@/lib/geofence";
 import {
@@ -649,7 +649,7 @@ function Leave() {
     setReason("");
   };
 
-  const startEdit = (leave: any) => {
+  const startEdit = (leave: LeaveRequest) => {
     setEditingId(leave.id);
     setEditType(leave.type);
     setEditDays(leave.days);
@@ -657,7 +657,7 @@ function Leave() {
     setEditReason(leave.reason);
   };
 
-  const saveEdit = (leave: any) => {
+  const saveEdit = (leave: LeaveRequest) => {
     const end = new Date(editStartDate);
     end.setDate(end.getDate() + editDays - 1);
     updateLeave(
@@ -676,6 +676,7 @@ function Leave() {
   };
 
   const canEdit = (appliedAt: string) => {
+    // eslint-disable-next-line react-hooks/purity
     const diffMins = (Date.now() - new Date(appliedAt).getTime()) / (1000 * 60);
     return diffMins <= 30;
   };
@@ -863,6 +864,7 @@ function Leave() {
                               onClick={() => startEdit(l)}
                               className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mt-1 font-medium bg-indigo-500/10 px-2 py-1 rounded-md"
                             >
+                              {/* eslint-disable-next-line react-hooks/purity */}
                               <Pencil size={12} /> Edit ({(30 - Math.floor((Date.now() - new Date(l.appliedAt).getTime()) / (1000 * 60)))}m left)
                             </button>
                           )}

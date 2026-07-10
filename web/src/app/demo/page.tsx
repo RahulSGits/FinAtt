@@ -29,6 +29,7 @@ export default function DemoPage() {
     localStorage.setItem("gs_session_employee", JSON.stringify(employeeSession));
     localStorage.setItem("gs_session_hr", JSON.stringify(hrSession));
     
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setReady(true);
   }, []);
 

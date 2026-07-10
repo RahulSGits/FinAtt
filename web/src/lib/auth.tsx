@@ -66,13 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const params = new URLSearchParams(window.location.search);
     const mockRole = params.get("mock_role");
     const key = mockRole ? `gs_session_${mockRole}` : "gs_session";
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSessionKey(key);
 
     try {
       const raw = localStorage.getItem(key);
       if (raw) {
         const parsed = sanitise(JSON.parse(raw));
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (parsed) setSession(parsed);
         else localStorage.removeItem(key); // expired or tampered
       }

@@ -43,6 +43,7 @@ export default function AIChatWidget() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -56,6 +57,7 @@ export default function AIChatWidget() {
 
   const handleSend = async (text: string) => {
     if (!text.trim()) return;
+    // eslint-disable-next-line react-hooks/purity
     const newMsg: Message = { id: Date.now().toString(), role: "user", content: text };
     setMessages((prev) => [...prev, newMsg]);
     setInput("");
@@ -73,7 +75,8 @@ export default function AIChatWidget() {
         ...prev,
         { id: (Date.now() + 1).toString(), role: "ai", content: data.response || (data.error ? `Error: ${data.error}` : "Sorry, I couldn't process that request.") },
       ]);
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error(error);
       setMessages((prev) => [
         ...prev,
         { id: (Date.now() + 1).toString(), role: "ai", content: "Network error occurred while contacting AI." },

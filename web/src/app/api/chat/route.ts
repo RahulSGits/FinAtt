@@ -24,7 +24,7 @@ If the user is HR or Admin, give them full access to all insights.
 
 Context Data (Mock Database):
 Company Info: ${JSON.stringify(company)}
-Employees Data (includes attendance % and this week's status): ${JSON.stringify(employees.map(e => ({ id: e.id, name: e.name, dept: e.dept, role: e.role, attendancePct: e.attendancePct, weekStatus: e.week })))}
+Employees Data (includes attendance % and this week's status): ${JSON.stringify(employees.map(e => ({ id: e.id, name: e.name, dept: e.department, role: e.designation, attendancePct: e.attendancePct, weekStatus: e.today })))}
 Leaves Data: ${JSON.stringify(leaves)}
 Payroll Summary (just top level info): ${payroll.length} employees on payroll.
 
@@ -49,8 +49,8 @@ Do not expose the raw JSON or state you are an AI reading JSON. Just answer natu
     const responseText = result.response.text();
 
     return NextResponse.json({ response: responseText });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("AI Error:", error);
-    return NextResponse.json({ error: error.message || "Failed to generate AI response" }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to generate AI response" }, { status: 500 });
   }
 }
