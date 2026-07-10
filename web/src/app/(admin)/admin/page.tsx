@@ -106,9 +106,9 @@ function Header({
 function DemoControls() {
   const router = useRouter();
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
       <div className="mr-auto flex items-center gap-2 text-sm">
-        <Eye size={16} className="text-indigo-300" />
+        <Eye size={16} className="text-indigo-600 dark:text-indigo-300" />
         <span className="muted">
           Preview a customer dashboard (opens as demo user)
         </span>
@@ -316,7 +316,7 @@ function Companies() {
         <div className="table-wrap">
           <table className="w-full text-sm">
             <thead>
-              <tr className="muted border-b border-white/5 text-left text-xs">
+              <tr className="muted border-b border-slate-200 dark:border-white/5 text-left text-xs">
                 <th className="pb-3 font-medium">Company</th>
                 <th className="pb-3 font-medium">Owner</th>
                 <th className="pb-3 font-medium">Seats used</th>
@@ -329,7 +329,7 @@ function Companies() {
               {tenants.map((t) => (
                 <tr
                   key={t.id}
-                  className="border-b border-white/5 last:border-0 hover:bg-white/5"
+                  className="border-b border-slate-200 dark:border-white/5 last:border-0 hover:bg-slate-100 dark:hover:bg-white/5"
                 >
                   <td className="py-3 font-medium">{t.name}</td>
                   <td className="muted py-3">{t.owner}</td>
@@ -340,13 +340,13 @@ function Companies() {
                           type="number"
                           value={editSeats}
                           onChange={(e) => setEditSeats(Number(e.target.value))}
-                          className="w-20 rounded-lg border border-white/10 bg-white/10 px-2 py-1 text-sm outline-none focus:border-indigo-500"
+                          className="w-20 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-200 dark:bg-white/10 px-2 py-1 text-sm outline-none focus:border-indigo-500"
                           min={1}
                         />
-                        <button onClick={() => saveEdit(t.id)} className="text-indigo-400 hover:text-indigo-300">
+                        <button onClick={() => saveEdit(t.id)} className="text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300">
                           <Save size={16} />
                         </button>
-                        <button onClick={() => setEditingId(null)} className="text-slate-400 hover:text-slate-300">
+                        <button onClick={() => setEditingId(null)} className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300">
                           <XCircle size={16} />
                         </button>
                       </div>
@@ -416,7 +416,7 @@ function PlansEditor() {
         action={
           <button
             onClick={publish}
-            className="flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-400"
+            className="flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white hover:bg-indigo-400"
           >
             <Save size={16} /> Publish plans
           </button>
@@ -439,7 +439,7 @@ function PlansEditor() {
           <div>
             <span className="muted text-xs">Price per company / month (₹)</span>
             <div className="mt-1 flex items-center gap-2">
-              <span className="text-lg font-semibold text-indigo-300">₹</span>
+              <span className="text-lg font-semibold text-indigo-600 dark:text-indigo-300">₹</span>
               <input
                 type="number"
                 value={base}
@@ -489,7 +489,7 @@ function PlansEditor() {
               )}
 
               {/* Discount editor */}
-              <div className="mt-4 border-t border-white/5 pt-3">
+              <div className="mt-4 border-t border-slate-200 dark:border-white/5 pt-3">
                 <span className="muted text-xs">Discount %</span>
                 <div className="mt-1 flex items-center gap-2">
                   <input
@@ -507,7 +507,7 @@ function PlansEditor() {
               </div>
 
               {/* Billing schedule preview */}
-              <div className="mt-3 rounded-xl bg-white/5 p-3">
+              <div className="mt-3 rounded-xl bg-slate-100 dark:bg-white/5 p-3">
                 <div className="muted text-xs">Billing schedule</div>
                 <div className="mt-1 text-sm">
                   {tier.months === 1
@@ -555,7 +555,7 @@ function Payments() {
             key={p.id}
             className="glass flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center"
           >
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/5">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 dark:bg-white/5">
               {icon(p.status)}
             </span>
             <div className="flex-1">
@@ -592,7 +592,7 @@ function ActivityView() {
               transition={{ delay: i * 0.06 }}
               className="flex items-center gap-3"
             >
-              <span className="relative grid h-8 w-8 place-items-center rounded-full bg-indigo-500/15 text-indigo-300">
+              <span className="relative grid h-8 w-8 place-items-center rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-300">
                 <Activity size={15} />
               </span>
               <div className="flex-1 text-sm">

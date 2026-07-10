@@ -23,7 +23,8 @@ import {
   Pencil,
 } from "lucide-react";
 import DashboardShell, { type NavItem } from "@/components/DashboardShell";
-import FaceScan from "@/components/FaceScan";
+import dynamic from "next/dynamic";
+const FaceScan = dynamic(() => import("@/components/FaceScan"), { ssr: false });
 import Profile from "@/components/Profile";
 import { StatCard, Panel, Pill, Avatar } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
@@ -145,7 +146,7 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
             >
               <Megaphone
                 size={18}
-                className="mt-0.5 shrink-0 text-indigo-300"
+                className="mt-0.5 shrink-0 text-indigo-600 dark:text-indigo-300"
               />
               <div className="min-w-0 text-sm">
                 <div className="font-medium">{b.title}</div>
@@ -196,7 +197,7 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
                   duration: 6,
                   repeat: checkedIn ? 0 : Infinity,
                 }}
-                className="tilt relative mx-auto grid h-44 w-44 place-items-center rounded-3xl border border-white/10 sm:h-52 sm:w-52"
+                className="tilt relative mx-auto grid h-44 w-44 place-items-center rounded-3xl border border-slate-200 dark:border-white/10 sm:h-52 sm:w-52"
                 style={{
                   background:
                     "radial-gradient(circle at 50% 30%, rgba(99,102,241,0.25), rgba(14,16,32,0.6))",
@@ -250,8 +251,8 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
               </div>
 
               {userPos && mode === "office" && (
-                <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-xs">
-                  <div className="font-medium text-slate-300">Your Location:</div>
+                <div className="mt-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-3 text-xs">
+                  <div className="font-medium text-slate-700 dark:text-slate-300">Your Location:</div>
                   <div className="muted mt-1 font-mono">
                     {userPos.lat.toFixed(5)}, {userPos.lng.toFixed(5)}
                   </div>
@@ -270,12 +271,12 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
               {!checkedIn && (
                 <div className="mt-3">
                   <div className="muted mb-1.5 text-xs">Work mode</div>
-                  <div className="inline-flex rounded-xl border border-white/10 bg-white/5 p-1">
+                  <div className="inline-flex rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-1">
                     <button
                       onClick={() => setMode("office")}
                       className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm ${
                         mode === "office"
-                          ? "bg-indigo-500 text-white"
+                          ? "bg-indigo-500 text-slate-900 dark:text-white"
                           : "muted"
                       }`}
                     >
@@ -285,7 +286,7 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
                       onClick={() => setMode("remote")}
                       className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm ${
                         mode === "remote"
-                          ? "bg-indigo-500 text-white"
+                          ? "bg-indigo-500 text-slate-900 dark:text-white"
                           : "muted"
                       }`}
                     >
@@ -330,7 +331,7 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
                       : () => onNavigate("profile")
                 }
                 disabled={step === 1 || step === 2 || (!checkedIn && mode === "office" && !isInside)}
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-3 font-medium text-white hover:bg-indigo-400 disabled:opacity-60"
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-3 font-medium text-slate-900 dark:text-white hover:bg-indigo-400 disabled:opacity-60"
               >
                 {!checkedIn && step === 0 && <Camera size={18} />}
                 {checkedIn
@@ -366,21 +367,21 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
 
       {/* Shared Attendance Timeline Row */}
       <Panel className="mt-4">
-        <h2 className="mb-4 text-sm font-medium text-slate-300">My Weekly Attendance</h2>
-        <div className="flex items-center gap-4 rounded-xl border border-white/5 bg-white/5 p-3 text-sm">
+        <h2 className="mb-4 text-sm font-medium text-slate-700 dark:text-slate-300">My Weekly Attendance</h2>
+        <div className="flex items-center gap-4 rounded-xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/5 p-3 text-sm">
           <div className="flex items-center gap-3 w-40 flex-shrink-0">
             <Avatar name={me.name} hue={me.avatarHue} />
             <div>
               <div className="font-medium">{me.name}</div>
-              <div className="text-[10px] text-slate-400">{me.memberId}</div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400">{me.memberId}</div>
             </div>
           </div>
-          <div className="flex gap-2 sm:gap-4 overflow-x-auto hide-scrollbar border-l border-white/10 pl-4 py-1 flex-1">
+          <div className="flex gap-2 sm:gap-4 overflow-x-auto hide-scrollbar border-l border-slate-200 dark:border-white/10 pl-4 py-1 flex-1">
             {dow.map((d, i) => (
               <div key={i} className="flex flex-col items-center gap-2 min-w-[32px]">
-                <span className="text-center text-[10px] leading-tight text-slate-400">
+                <span className="text-center text-[10px] leading-tight text-slate-500 dark:text-slate-400">
                   {d.split(" ")[0]}<br/>
-                  <span className="text-white/30">{d.split(" ")[1]}</span>
+                  <span className="text-slate-900 dark:text-white/30">{d.split(" ")[1]}</span>
                 </span>
                 <div
                   className="h-4 w-4 rounded-[5px] flex-shrink-0"
@@ -389,9 +390,9 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
               </div>
             ))}
           </div>
-          <div className="ml-auto w-32 flex-shrink-0 border-l border-white/10 pl-4">
+          <div className="ml-auto w-32 flex-shrink-0 border-l border-slate-200 dark:border-white/10 pl-4">
             <div className="mb-1.5 flex justify-between text-xs">
-              <span className="text-slate-400">This Month</span>
+              <span className="text-slate-500 dark:text-slate-400">This Month</span>
               <span>{me.attendancePct}%</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
@@ -461,7 +462,7 @@ function CheckRow({
               ? "bg-emerald-500/25 text-emerald-300"
               : active
                 ? "bg-indigo-500/25 text-indigo-200"
-                : "bg-white/5 text-slate-500"
+                : "bg-slate-100 dark:bg-white/5 text-slate-500"
         }`}
       >
         {error ? (
@@ -483,7 +484,7 @@ function CheckRow({
           error
             ? "text-red-400"
             : done || active
-              ? "text-slate-200"
+              ? "text-slate-800 dark:text-slate-200"
               : "text-slate-500"
         }
       >
@@ -523,7 +524,7 @@ function Calendar() {
           <select 
             value={month} 
             onChange={(e) => setMonth(Number(e.target.value))}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm outline-none focus:border-indigo-500 transition-colors"
+            className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-1.5 text-sm outline-none focus:border-indigo-500 transition-colors"
           >
             {monthNames.map((m, i) => (
               <option key={m} value={i} className="bg-slate-800">{m}</option>
@@ -532,7 +533,7 @@ function Calendar() {
           <select 
             value={year} 
             onChange={(e) => setYear(Number(e.target.value))}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm outline-none focus:border-indigo-500 transition-colors"
+            className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-1.5 text-sm outline-none focus:border-indigo-500 transition-colors"
           >
             {Array.from({length: 5}).map((_, i) => (
               <option key={i} value={currentYear - i} className="bg-slate-800">{currentYear - i}</option>
@@ -558,7 +559,7 @@ function Calendar() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: c.day * 0.008 }}
-                className="aspect-square rounded-lg border border-white/5 p-1 text-left sm:rounded-xl sm:p-1.5"
+                className="aspect-square rounded-lg border border-slate-200 dark:border-white/5 p-1 text-left sm:rounded-xl sm:p-1.5"
                 style={{
                   background:
                     c.status !== "none"
@@ -708,7 +709,7 @@ function Leave() {
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+                className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none"
               >
                 <option>Casual</option>
                 <option>Sick</option>
@@ -722,7 +723,7 @@ function Leave() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none [color-scheme:dark]"
+                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none [color-scheme:dark]"
                 />
               </label>
               <label className="text-sm">
@@ -732,7 +733,7 @@ function Leave() {
                   min="1"
                   value={days}
                   onChange={(e) => setDays(parseInt(e.target.value) || 1)}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none"
                 />
               </label>
             </div>
@@ -742,13 +743,13 @@ function Leave() {
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Family function, medical appointment…"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+                className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none"
               />
             </label>
             <button
               onClick={handleSubmit}
               disabled={!reason}
-              className="rounded-xl bg-indigo-500 py-2.5 font-medium text-white hover:bg-indigo-400 disabled:opacity-50 sm:col-span-2"
+              className="rounded-xl bg-indigo-500 py-2.5 font-medium text-slate-900 dark:text-white hover:bg-indigo-400 disabled:opacity-50 sm:col-span-2"
             >
               Submit request
             </button>
@@ -764,7 +765,7 @@ function Leave() {
                   key={f}
                   onClick={() => setFilter(f)}
                   className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                    filter === f ? "bg-white text-black" : "bg-white/10 text-white hover:bg-white/20"
+                    filter === f ? "bg-white text-black" : "bg-slate-200 dark:bg-white/10 text-slate-900 dark:text-white hover:bg-white/20"
                   }`}
                 >
                   {f}
@@ -774,7 +775,7 @@ function Leave() {
           </div>
           <div className="grid gap-3">
             {filtered.length === 0 ? (
-              <div className="glass rounded-2xl p-6 text-center text-sm text-slate-400">
+              <div className="glass rounded-2xl p-6 text-center text-sm text-slate-500 dark:text-slate-400">
                 No leave requests found.
               </div>
             ) : (
@@ -782,7 +783,7 @@ function Leave() {
                 <div key={l.id} className="glass rounded-2xl p-4 transition-all">
                   {editingId === l.id ? (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <h3 className="sm:col-span-2 font-medium text-indigo-300 flex items-center gap-2">
+                      <h3 className="sm:col-span-2 font-medium text-indigo-600 dark:text-indigo-300 flex items-center gap-2">
                         <Pencil size={16} /> Editing Request {l.id}
                       </h3>
                       <label className="text-sm">
@@ -790,7 +791,7 @@ function Leave() {
                         <select
                           value={editType}
                           onChange={(e) => setEditType(e.target.value)}
-                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+                          className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none"
                         >
                           <option>Casual</option>
                           <option>Sick</option>
@@ -804,7 +805,7 @@ function Leave() {
                             type="date"
                             value={editStartDate}
                             onChange={(e) => setEditStartDate(e.target.value)}
-                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none [color-scheme:dark]"
+                            className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none [color-scheme:dark]"
                           />
                         </label>
                         <label className="text-sm">
@@ -814,7 +815,7 @@ function Leave() {
                             min="1"
                             value={editDays}
                             onChange={(e) => setEditDays(parseInt(e.target.value) || 1)}
-                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+                            className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none"
                           />
                         </label>
                       </div>
@@ -823,12 +824,12 @@ function Leave() {
                         <input
                           value={editReason}
                           onChange={(e) => setEditReason(e.target.value)}
-                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+                          className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none"
                         />
                       </label>
                       <div className="sm:col-span-2 flex justify-end gap-2 mt-2">
-                        <button onClick={() => setEditingId(null)} className="rounded-lg bg-white/10 px-4 py-2 text-sm hover:bg-white/20">Cancel</button>
-                        <button onClick={() => saveEdit(l)} className="rounded-lg bg-indigo-500 px-4 py-2 text-sm text-white hover:bg-indigo-400">Save Changes</button>
+                        <button onClick={() => setEditingId(null)} className="rounded-lg bg-slate-200 dark:bg-white/10 px-4 py-2 text-sm hover:bg-white/20">Cancel</button>
+                        <button onClick={() => saveEdit(l)} className="rounded-lg bg-indigo-500 px-4 py-2 text-sm text-slate-900 dark:text-white hover:bg-indigo-400">Save Changes</button>
                       </div>
                     </div>
                   ) : (
@@ -836,18 +837,18 @@ function Leave() {
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-white">{l.type} Leave</span>
+                            <span className="font-semibold text-slate-900 dark:text-white">{l.type} Leave</span>
                             <span className="muted text-xs">· {l.id}</span>
                             {l.versions.length > 0 && (
-                              <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-bold text-indigo-300">
+                              <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-300">
                                 EDITED {l.versions.length} TIME{l.versions.length > 1 ? 'S' : ''}
                               </span>
                             )}
                           </div>
-                          <div className="text-sm text-slate-300 mb-2">
+                          <div className="text-sm text-slate-700 dark:text-slate-300 mb-2">
                             {l.startDate} &rarr; {l.endDate} ({l.days} days)
                           </div>
-                          <div className="text-sm text-slate-400">
+                          <div className="text-sm text-slate-500 dark:text-slate-400">
                             &ldquo;{l.reason}&rdquo;
                           </div>
                           <div className="text-xs text-slate-500 mt-2">
@@ -862,7 +863,7 @@ function Leave() {
                           {l.status === 'pending' && canEdit(l.appliedAt) && (
                             <button
                               onClick={() => startEdit(l)}
-                              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mt-1 font-medium bg-indigo-500/10 px-2 py-1 rounded-md"
+                              className="text-xs text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 flex items-center gap-1 mt-1 font-medium bg-indigo-500/10 px-2 py-1 rounded-md"
                             >
                               {/* eslint-disable-next-line react-hooks/purity */}
                               <Pencil size={12} /> Edit ({(30 - Math.floor((Date.now() - new Date(l.appliedAt).getTime()) / (1000 * 60)))}m left)
@@ -878,10 +879,10 @@ function Leave() {
                       )}
 
                       {l.versions.length > 0 && (
-                        <div className="mt-4 pt-3 border-t border-white/5">
+                        <div className="mt-4 pt-3 border-t border-slate-200 dark:border-white/5">
                           <button
                             onClick={() => setExpandedId(expandedId === l.id ? null : l.id)}
-                            className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
+                            className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1"
                           >
                             {expandedId === l.id ? "Hide" : "Show"} version history ({l.versions.length})
                           </button>
@@ -894,16 +895,16 @@ function Leave() {
                                 exit={{ height: 0, opacity: 0 }}
                                 className="overflow-hidden"
                               >
-                                <div className="mt-3 space-y-2 pl-3 border-l-2 border-white/10">
+                                <div className="mt-3 space-y-2 pl-3 border-l-2 border-slate-200 dark:border-white/10">
                                   {[...l.versions].reverse().map((v, idx) => (
-                                    <div key={v.id} className="text-xs text-slate-400">
-                                      <div className="font-medium text-slate-300">Version {l.versions.length - idx} <span className="muted font-normal">· {new Date(v.editedAt).toLocaleString()}</span></div>
+                                    <div key={v.id} className="text-xs text-slate-500 dark:text-slate-400">
+                                      <div className="font-medium text-slate-700 dark:text-slate-300">Version {l.versions.length - idx} <span className="muted font-normal">· {new Date(v.editedAt).toLocaleString()}</span></div>
                                       <div className="mt-1">{v.type} | {v.startDate} &rarr; {v.endDate} ({v.days}d)</div>
                                       <div>Reason: {v.reason}</div>
                                     </div>
                                   ))}
-                                  <div className="text-xs text-slate-400 opacity-60">
-                                    <div className="font-medium text-slate-300">Original Submission <span className="font-normal">· {new Date(l.appliedAt).toLocaleString()}</span></div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400 opacity-60">
+                                    <div className="font-medium text-slate-700 dark:text-slate-300">Original Submission <span className="font-normal">· {new Date(l.appliedAt).toLocaleString()}</span></div>
                                   </div>
                                 </div>
                               </motion.div>
@@ -976,7 +977,7 @@ function Salary() {
         <div className="table-wrap">
           <table className="w-full text-sm">
             <thead>
-              <tr className="muted border-b border-white/5 text-left text-xs">
+              <tr className="muted border-b border-slate-200 dark:border-white/5 text-left text-xs">
                 <th className="pb-3 font-medium">Month</th>
                 <th className="pb-3 text-right font-medium hidden sm:table-cell">
                   Gross
@@ -993,7 +994,7 @@ function Salary() {
               {mySalarySlips.map((s) => (
                 <tr
                   key={s.month}
-                  className="border-b border-white/5 last:border-0"
+                  className="border-b border-slate-200 dark:border-white/5 last:border-0"
                 >
                   <td className="py-3 font-medium">{s.month}</td>
                   <td className="py-3 text-right hidden sm:table-cell">
@@ -1009,7 +1010,7 @@ function Salary() {
                     <Pill tone="#34d399">{s.status}</Pill>
                   </td>
                   <td className="py-3 text-right">
-                    <button className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1 text-xs hover:bg-white/10">
+                    <button className="inline-flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-white/5 px-2.5 py-1 text-xs hover:bg-slate-200 dark:hover:bg-white/10">
                       <Download size={13} /> PDF
                     </button>
                   </td>

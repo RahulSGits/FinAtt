@@ -200,13 +200,13 @@ export default function FaceScan({
       <div className="glass-strong w-full max-w-md rounded-3xl p-6" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <ScanFace size={20} className="text-indigo-300" />
+            <ScanFace size={20} className="text-indigo-600 dark:text-indigo-300" />
             <h3 className="font-semibold">{mode === "enroll" ? "Secure Face Registration" : "Biometric Check-in"}</h3>
           </div>
-          <button onClick={onClose} className="muted hover:text-white"><X size={18} /></button>
+          <button onClick={onClose} className="muted hover:text-slate-900 dark:hover:text-white"><X size={18} /></button>
         </div>
 
-        <div className="relative mx-auto aspect-square w-full max-w-xs overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+        <div className="relative mx-auto aspect-square w-full max-w-xs overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-black/40">
           <video ref={videoRef} playsInline muted className="h-full w-full -scale-x-100 object-cover" />
           <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full -scale-x-100" />
 
@@ -229,7 +229,7 @@ export default function FaceScan({
         <div className="mt-4 flex items-center justify-center gap-2 text-sm font-medium h-12">
           {mode === "enroll" && phase === "live" && (
             <div className="text-center w-full">
-              {enrollStep === "center" && <span className="text-indigo-300">Look straight at the camera</span>}
+              {enrollStep === "center" && <span className="text-indigo-600 dark:text-indigo-300">Look straight at the camera</span>}
               {enrollStep === "left" && <span className="text-amber-300">Turn your head left</span>}
               {enrollStep === "right" && <span className="text-amber-300">Turn your head right</span>}
               {enrollStep === "up" && <span className="text-amber-300">Look slightly up</span>}
@@ -237,7 +237,7 @@ export default function FaceScan({
               
               <div className="flex justify-center gap-1 mt-3">
                 {ENROLL_STEPS.slice(0, 4).map((s, i) => (
-                  <div key={s} className={`h-2 w-8 rounded-full ${i < enrollStepIdx ? "bg-emerald-400" : i === enrollStepIdx ? "bg-amber-400 animate-pulse" : "bg-white/10"}`} />
+                  <div key={s} className={`h-2 w-8 rounded-full ${i < enrollStepIdx ? "bg-emerald-400" : i === enrollStepIdx ? "bg-amber-400 animate-pulse" : "bg-slate-200 dark:bg-white/10"}`} />
                 ))}
               </div>
             </div>
@@ -245,7 +245,7 @@ export default function FaceScan({
 
           {mode === "verify" && phase === "live" && (
             <div className="text-center w-full">
-              {matchStatus === "pending" && <span className="text-indigo-300 animate-pulse">Scanning face...</span>}
+              {matchStatus === "pending" && <span className="text-indigo-600 dark:text-indigo-300 animate-pulse">Scanning face...</span>}
               {matchStatus === "matched" && <span className="text-emerald-400 flex justify-center items-center gap-1"><CheckCircle2 size={16}/> Identity Verified!</span>}
               {matchStatus === "mismatch" && (
                 <div className="text-red-400">
@@ -261,7 +261,7 @@ export default function FaceScan({
           {(phase === "denied" || phase === "nocam" || phase === "error") && (
             <button
               onClick={doRetry}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-3 font-medium hover:bg-white/10"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 py-3 font-medium hover:bg-slate-200 dark:hover:bg-white/10"
             >
               <RefreshCw size={17} /> Retry
             </button>
@@ -270,7 +270,7 @@ export default function FaceScan({
             <button
               onClick={handleEnrollComplete}
               disabled={enrollStep !== "done"}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-3 font-medium text-white hover:bg-indigo-400 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-3 font-medium text-slate-900 dark:text-white hover:bg-indigo-400 disabled:opacity-50"
             >
               <CheckCircle2 size={18} /> Register Profile
             </button>

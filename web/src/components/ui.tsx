@@ -63,22 +63,28 @@ export function StatCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
-      className="glass lift rounded-2xl p-5 relative overflow-hidden"
+      className="glass lift rounded-2xl p-5 relative overflow-hidden group"
     >
+      {/* Accent glow blob */}
       <div
-        className="absolute -right-6 -top-6 h-24 w-24 rounded-full blur-2xl opacity-40"
+        className="absolute -right-6 -top-6 h-24 w-24 rounded-full blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-500"
         style={{ background: tone }}
+      />
+      {/* Top gradient accent line */}
+      <div
+        className="absolute top-0 left-4 right-4 h-[2px] rounded-full opacity-60"
+        style={{ background: `linear-gradient(90deg, transparent, ${tone}, transparent)` }}
       />
       <div className="flex items-center justify-between">
         <span className="muted text-sm">{label}</span>
         <span
-          className="grid h-9 w-9 place-items-center rounded-xl"
+          className="grid h-10 w-10 place-items-center rounded-xl transition-transform group-hover:scale-110"
           style={{ background: `${tone}22`, color: tone }}
         >
           {icon}
         </span>
       </div>
-      <div className="mt-3 text-3xl font-semibold tracking-tight">
+      <div className="mt-3 text-3xl font-bold tracking-tight">
         <AnimatedNumber value={value} decimals={decimals} suffix={suffix} />
       </div>
       {sub && <div className="muted mt-1 text-xs">{sub}</div>}
@@ -118,7 +124,7 @@ export function Avatar({ name, hue }: { name: string; hue: number }) {
     .join("");
   return (
     <span
-      className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold text-white"
+      className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold text-white ring-2 ring-white/20"
       style={{
         background: `linear-gradient(135deg, hsl(${hue} 70% 55%), hsl(${
           (hue + 40) % 360
@@ -136,6 +142,7 @@ const statusMeta: Record<Status, { label: string; color: string }> = {
   absent: { label: "Absent", color: "#f87171" },
   leave: { label: "On leave", color: "#60a5fa" },
   off: { label: "Week off", color: "#64748b" },
+  pending: { label: "Pending", color: "#94a3b8" },
 };
 
 export function StatusBadge({ status }: { status: Status }) {

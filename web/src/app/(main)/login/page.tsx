@@ -36,7 +36,7 @@ export default function LoginPage() {
           className="hidden md:block"
         >
           <div className="mb-6 flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-500/20 text-indigo-300">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-300">
               <Fingerprint size={20} />
             </span>
             <span className="text-lg font-semibold">GeoSelfie</span>
@@ -55,7 +55,7 @@ export default function LoginPage() {
               { icon: Lock, t: "Argon2 · JWT rotation · audit logs" },
             ].map((f) => (
               <div key={f.t} className="flex items-center gap-3">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-indigo-300">
+                <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 dark:bg-white/5 text-indigo-600 dark:text-indigo-300">
                   <f.icon size={16} />
                 </span>
                 <span className="muted text-sm">{f.t}</span>
@@ -99,7 +99,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-slate-400 hover:text-white focus:outline-none flex-shrink-0"
+                  className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white focus:outline-none flex-shrink-0"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -119,8 +119,8 @@ export default function LoginPage() {
                       }}
                       className={`rounded-xl border px-3 py-2 text-sm transition ${
                         role === a.role
-                          ? "border-indigo-400/60 bg-indigo-500/20 text-white"
-                          : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
+                          ? "border-indigo-400/60 bg-indigo-500/20 text-slate-900 dark:text-white"
+                          : "border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10"
                       }`}
                     >
                       {a.label}
@@ -131,7 +131,7 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                className="group flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-3 font-medium text-white hover:bg-indigo-400"
+                className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 py-3.5 font-medium text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-[1.01] transition-all"
               >
                 Enter dashboard
                 <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
@@ -156,8 +156,8 @@ function Field({
   return (
     <label className="block">
       <span className="muted mb-1.5 block text-xs">{label}</span>
-      <span className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 focus-within:border-indigo-400/50">
-        <span className="text-slate-400">{icon}</span>
+      <span className="flex items-center gap-2 rounded-xl border border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-white/5 px-3 py-2.5 focus-within:border-indigo-400/60 focus-within:ring-2 focus-within:ring-indigo-400/15 transition-all backdrop-blur-sm">
+        <span className="text-slate-500 dark:text-slate-400">{icon}</span>
         {children}
       </span>
     </label>

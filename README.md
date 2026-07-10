@@ -87,6 +87,40 @@ flutter build apk        # Android
 flutter build ios        # iOS (needs Xcode + Apple developer signing)
 ```
 
+### 3. Web Dashboard (Next.js)
+The enterprise web dashboard provides the administrative interface, HR reporting, employee portal, and the AI assistant.
+
+**Prerequisites:**
+- Node.js v20+ 
+- npm
+
+**Installation & Setup:**
+```bash
+cd web
+npm install
+```
+
+This will automatically install all required packages, including:
+- `next` (v16.2.10)
+- `react`, `react-dom`
+- `tailwindcss` (v4), `framer-motion`, `clsx`, `lucide-react`
+- `@vladmandic/face-api` (for web-based face verification)
+- `recharts` (for HR charts)
+- `leaflet`, `react-leaflet` (for live geofence maps)
+- `@google/generative-ai` (for the AI Chat Widget)
+
+**Running Locally:**
+```bash
+npm run dev
+```
+Then, open [http://localhost:3000](http://localhost:3000) in your browser. The mock database will load automatically.
+
+Building for production:
+```bash
+npm run build
+npm run start
+```
+
 ## Roadmap / future work
 
 - **Deep face embeddings** — upgrade the geometry matcher to a TFLite

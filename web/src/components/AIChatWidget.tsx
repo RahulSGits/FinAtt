@@ -92,7 +92,7 @@ export default function AIChatWidget() {
     <>
       {/* Header Action Button */}
       <button
-        className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 transition-colors"
+        className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/30 transition-colors"
         onClick={() => setIsOpen(true)}
         title="Ask geoSelfie AI"
       >
@@ -112,11 +112,11 @@ export default function AIChatWidget() {
             dragControls={dragControls}
             dragListener={false}
             dragMomentum={false}
-            className="fixed bottom-24 right-6 z-50 flex h-[500px] w-[350px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl sm:w-[400px]"
+            className="fixed bottom-24 right-6 z-50 flex h-[500px] w-[350px] flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-900 shadow-2xl sm:w-[400px]"
           >
             {/* Header */}
             <div 
-              className="flex items-center justify-between border-b border-white/10 bg-slate-800/50 p-4 cursor-grab active:cursor-grabbing select-none"
+              className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-800/50 p-4 cursor-grab active:cursor-grabbing select-none"
               onPointerDown={(e) => dragControls.start(e)}
             >
               <div className="flex items-center gap-3">
@@ -124,13 +124,13 @@ export default function AIChatWidget() {
                   <Sparkles size={16} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-white">geoSelfie AI</h3>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">geoSelfie AI</h3>
                   <p className="text-[10px] text-emerald-400">Online</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="rounded-lg p-2 text-slate-400 hover:bg-white/5 hover:text-white"
+                className="rounded-lg p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
               >
                 <X size={18} />
               </button>
@@ -143,7 +143,7 @@ export default function AIChatWidget() {
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-400">
                     <Sparkles size={24} />
                   </div>
-                  <h4 className="mb-2 text-sm font-medium text-slate-300">How can I help you today?</h4>
+                  <h4 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">How can I help you today?</h4>
                   <p className="text-xs text-slate-500">
                     Try asking me about attendance, reports, or anomalies.
                   </p>
@@ -153,7 +153,7 @@ export default function AIChatWidget() {
                       <button
                         key={i}
                         onClick={() => handleSend(p)}
-                        className="rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-3 py-2 text-left text-xs text-indigo-300 transition hover:bg-indigo-500/10"
+                        className="rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-3 py-2 text-left text-xs text-indigo-600 dark:text-indigo-300 transition hover:bg-indigo-500/10"
                       >
                         {p}
                       </button>
@@ -168,15 +168,15 @@ export default function AIChatWidget() {
                       className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2`}
                     >
                       {msg.role === "ai" && (
-                        <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-indigo-500 text-white mt-1">
+                        <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-indigo-500 text-slate-900 dark:text-white mt-1">
                           <Sparkles size={12} />
                         </div>
                       )}
                       <div
                         className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
                           msg.role === "user"
-                            ? "bg-indigo-600 text-white rounded-tr-sm"
-                            : "bg-slate-800 text-slate-200 border border-white/5 rounded-tl-sm"
+                            ? "bg-indigo-600 text-slate-900 dark:text-white rounded-tr-sm"
+                            : "bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/5 rounded-tl-sm"
                         }`}
                       >
                         <div
@@ -190,10 +190,10 @@ export default function AIChatWidget() {
                   ))}
                   {isTyping && (
                     <div className="flex justify-start gap-2">
-                      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-indigo-500 text-white mt-1">
+                      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-indigo-500 text-slate-900 dark:text-white mt-1">
                         <Sparkles size={12} />
                       </div>
-                      <div className="flex items-center gap-1 rounded-2xl bg-slate-800 px-4 py-3 border border-white/5 rounded-tl-sm">
+                      <div className="flex items-center gap-1 rounded-2xl bg-slate-800 px-4 py-3 border border-slate-200 dark:border-white/5 rounded-tl-sm">
                         <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="h-1.5 w-1.5 rounded-full bg-slate-400" />
                         <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="h-1.5 w-1.5 rounded-full bg-slate-400" />
                         <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="h-1.5 w-1.5 rounded-full bg-slate-400" />
@@ -206,7 +206,7 @@ export default function AIChatWidget() {
             </div>
 
             {/* Input Area */}
-            <div className="border-t border-white/10 bg-slate-800/50 p-3">
+            <div className="border-t border-slate-200 dark:border-white/10 bg-slate-800/50 p-3">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -219,12 +219,12 @@ export default function AIChatWidget() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask me anything..."
-                  className="w-full rounded-xl border border-white/10 bg-slate-900 py-3 pl-4 pr-12 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-900 py-3 pl-4 pr-12 text-sm text-slate-900 dark:text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
                 />
                 <button
                   type="submit"
                   disabled={!input.trim()}
-                  className="absolute right-2 flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white disabled:bg-slate-700 disabled:text-slate-500 transition-colors"
+                  className="absolute right-2 flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-slate-900 dark:text-white disabled:bg-slate-700 disabled:text-slate-500 transition-colors"
                 >
                   <Send size={14} />
                 </button>

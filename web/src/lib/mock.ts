@@ -4,7 +4,7 @@
 
 export type Role = "admin" | "hr" | "employee";
 
-export type Status = "present" | "absent" | "half" | "leave" | "off";
+export type Status = "present" | "absent" | "half" | "leave" | "off" | "pending";
 
 export function getWeekDates() {
   const dates = [];
@@ -305,6 +305,7 @@ export const statusColor: Record<Status | "none", string> = {
   absent: "#f87171",
   leave: "#60a5fa",
   off: "#475569",
+  pending: "#94a3b8",
   none: "transparent",
 };
 

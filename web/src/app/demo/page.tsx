@@ -36,11 +36,11 @@ export default function DemoPage() {
   if (!ready) return null;
 
   return (
-    <div className="flex flex-col h-screen w-full bg-slate-950 text-white overflow-hidden absolute inset-0 z-[100]">
+    <div className="flex flex-col h-screen w-full bg-slate-950 text-slate-900 dark:text-white overflow-hidden absolute inset-0 z-[100]">
       {/* Top Bar */}
-      <div className="h-14 border-b border-white/10 bg-black/50 flex items-center justify-between px-6 shrink-0">
+      <div className="h-14 border-b border-slate-200 dark:border-white/10 bg-black/20 dark:bg-black/50 flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center gap-4">
-          <Link href="/admin" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium transition">
+          <Link href="/admin" className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-2 text-sm font-medium transition">
             <ArrowLeft size={16} /> Back to Admin
           </Link>
           <div className="h-4 w-px bg-white/20" />
@@ -48,7 +48,7 @@ export default function DemoPage() {
             geoSelfie Live Demo
           </h1>
         </div>
-        <div className="text-sm text-slate-400 hidden sm:block">
+        <div className="text-sm text-slate-500 dark:text-slate-400 hidden sm:block">
           Try submitting a leave on the left and see it appear on the right!
         </div>
       </div>
@@ -56,9 +56,9 @@ export default function DemoPage() {
       {/* Split Screen */}
       <div className="flex-1 flex overflow-hidden">
         {/* Employee Pane */}
-        <div className="flex-1 border-r border-white/10 relative h-full">
+        <div className="flex-1 border-r border-slate-200 dark:border-white/10 relative h-full">
           <div className="absolute top-0 left-0 right-0 h-8 bg-indigo-500/10 border-b border-indigo-500/20 flex items-center justify-center pointer-events-none z-10 backdrop-blur-sm">
-            <span className="text-xs font-bold tracking-widest text-indigo-300 uppercase">Employee View</span>
+            <span className="text-xs font-bold tracking-widest text-indigo-600 dark:text-indigo-300 uppercase">Employee View</span>
           </div>
           <iframe 
             src="/employee?mock_role=employee" 

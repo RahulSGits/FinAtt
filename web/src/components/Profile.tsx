@@ -19,7 +19,8 @@ import { useAuth } from "@/lib/auth";
 import { useFaceEnrollment } from "@/lib/face";
 import { employees } from "@/lib/mock";
 import { Panel } from "@/components/ui";
-import FaceScan from "./FaceScan";
+import dynamic from "next/dynamic";
+const FaceScan = dynamic(() => import("./FaceScan"), { ssr: false });
 
 export default function Profile() {
   const { session, updateProfile } = useAuth();
@@ -122,7 +123,7 @@ export default function Profile() {
         <Panel className="lg:col-span-1">
           <div className="flex flex-col items-center py-2 text-center">
             <span
-              className="grid h-20 w-20 place-items-center rounded-full text-2xl font-semibold text-white"
+              className="grid h-20 w-20 place-items-center rounded-full text-2xl font-semibold text-slate-900 dark:text-white"
               style={{
                 background: "linear-gradient(135deg,#6366f1,#a855f7)",
               }}
@@ -138,7 +139,7 @@ export default function Profile() {
             {!editing && (
               <button
                 onClick={startEdit}
-                className="mt-3 flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-1.5 text-xs text-indigo-200 hover:bg-white/10"
+                className="mt-3 flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-white/5 px-3 py-1.5 text-xs text-indigo-200 hover:bg-slate-200 dark:hover:bg-white/10"
               >
                 <Pencil size={13} /> Edit profile
               </button>
@@ -168,13 +169,13 @@ export default function Profile() {
                   <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => setEditing(false)}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 py-2 text-sm hover:bg-white/10"
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 py-2 text-sm hover:bg-slate-200 dark:hover:bg-white/10"
                     >
                       <X size={14} /> Cancel
                     </button>
                     <button
                       onClick={saveProfile}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-500 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-500 py-2 text-sm font-medium text-slate-900 dark:text-white hover:bg-indigo-400"
                     >
                       <Save size={14} /> Save
                     </button>
@@ -214,7 +215,7 @@ export default function Profile() {
         {isEmployee && (
           <Panel title="Face registration" className="lg:col-span-2">
             <div className="grid items-center gap-6 sm:grid-cols-[auto_1fr]">
-              <div className="relative mx-auto grid h-40 w-40 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+              <div className="relative mx-auto grid h-40 w-40 place-items-center overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-black/30">
                 {hasImg ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -226,7 +227,7 @@ export default function Profile() {
                   <ScanFace size={54} className="text-slate-500" />
                 )}
                 {enrolled && (
-                  <span className="absolute bottom-2 right-2 grid h-7 w-7 place-items-center rounded-full bg-emerald-500 text-white">
+                  <span className="absolute bottom-2 right-2 grid h-7 w-7 place-items-center rounded-full bg-emerald-500 text-slate-900 dark:text-white">
                     <CheckCircle2 size={16} />
                   </span>
                 )}
@@ -264,13 +265,13 @@ export default function Profile() {
                   <div>
                     <p className="muted text-sm">
                       Register your face{" "}
-                      <span className="text-white">once</span> to enable selfie
+                      <span className="text-slate-900 dark:text-white">once</span> to enable selfie
                       attendance. After this, check-in verifies your face live
                       each day — no re-registration needed.
                     </p>
                     <button
                       onClick={() => setScan(true)}
-                      className="mt-4 flex items-center gap-2 rounded-xl bg-indigo-500 px-5 py-3 font-medium text-white hover:bg-indigo-400"
+                      className="mt-4 flex items-center gap-2 rounded-xl bg-indigo-500 px-5 py-3 font-medium text-slate-900 dark:text-white hover:bg-indigo-400"
                     >
                       <Camera size={18} /> Register face
                     </button>
@@ -310,7 +311,7 @@ function Row({
   tone?: string;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0">
+    <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/5 pb-2 last:border-0">
       <span className="muted flex items-center gap-2 text-xs">
         {icon} {label}
       </span>
@@ -336,7 +337,7 @@ function EditRow({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="border-b border-white/5 pb-2 last:border-0">
+    <div className="border-b border-slate-200 dark:border-white/5 pb-2 last:border-0">
       <span className="muted mb-1 flex items-center gap-2 text-xs">
         {icon} {label}
       </span>

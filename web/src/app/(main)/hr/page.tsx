@@ -75,7 +75,7 @@ import dynamic from "next/dynamic";
 const DynamicMap = dynamic(() => import("@/components/GeofenceMap"), {
   ssr: false,
   loading: () => (
-    <div className="grid h-full place-items-center text-sm text-slate-400">
+    <div className="grid h-full place-items-center text-sm text-slate-500 dark:text-slate-400">
       Loading interactive map...
     </div>
   ),
@@ -381,13 +381,13 @@ function EmployeesView({
           <div className="flex gap-2">
             <button
               onClick={() => fileRef.current?.click()}
-              className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
+              className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 text-sm hover:bg-slate-200 dark:hover:bg-white/10"
             >
               <Upload size={16} /> Upload CSV
             </button>
             <button
               onClick={() => setOpen(true)}
-              className="flex items-center gap-2 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+              className="flex items-center gap-2 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-slate-900 dark:text-white hover:bg-indigo-400"
             >
               <UserPlus size={16} /> Add member
             </button>
@@ -411,8 +411,8 @@ function EmployeesView({
             onClick={() => setFilter(key)}
             className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm ${
               filter === key
-                ? "bg-indigo-500 text-white"
-                : "border border-white/10 bg-white/5 muted hover:bg-white/10"
+                ? "bg-indigo-500 text-slate-900 dark:text-white"
+                : "border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 muted hover:bg-slate-200 dark:hover:bg-white/10"
             }`}
           >
             {key === "office" && <Building2 size={14} />}
@@ -438,7 +438,7 @@ function EmployeesView({
         <div className="table-wrap">
           <table className="w-full text-sm">
             <thead>
-              <tr className="muted border-b border-white/5 text-left text-xs">
+              <tr className="muted border-b border-slate-200 dark:border-white/5 text-left text-xs">
                 <th className="pb-3 font-medium">Member</th>
                 <th className="pb-3 font-medium hidden sm:table-cell">
                   Access ID
@@ -458,7 +458,7 @@ function EmployeesView({
               {shown.map((e) => (
                 <tr
                   key={e.id}
-                  className="border-b border-white/5 last:border-0"
+                  className="border-b border-slate-200 dark:border-white/5 last:border-0"
                 >
                   <td className="py-3">
                     <div className="flex items-center gap-3">
@@ -499,7 +499,7 @@ function EmployeesView({
                       )}
                       <button
                         onClick={() => resetFace(e)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-amber-300"
+                        className="rounded-lg p-1.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-amber-300"
                         title="Reset face registration"
                       >
                         <RotateCcw size={14} />
@@ -554,7 +554,7 @@ function AddMember({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/20 dark:bg-black/50 p-4"
       onClick={onClose}
     >
       <motion.div
@@ -565,7 +565,7 @@ function AddMember({
       >
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">Add member</h3>
-          <button onClick={onClose} className="muted hover:text-white">
+          <button onClick={onClose} className="muted hover:text-slate-900 dark:hover:text-white">
             <X size={18} />
           </button>
         </div>
@@ -578,12 +578,12 @@ function AddMember({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Anil Kumar"
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+              className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none"
             />
           </Labeled>
           <div className="grid grid-cols-2 gap-3">
             <Labeled label="Access ID (auto)">
-              <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-mono text-sm text-indigo-200">
+              <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 font-mono text-sm text-indigo-200">
                 {memberId}
               </div>
             </Labeled>
@@ -591,7 +591,7 @@ function AddMember({
               <select
                 value={dept}
                 onChange={(e) => setDept(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+                className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none"
               >
                 <option>Operations</option>
                 <option>Engineering</option>
@@ -607,12 +607,12 @@ function AddMember({
               value={salary}
               onChange={(e) => setSalary(e.target.value)}
               type="number"
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+              className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none"
             />
           </Labeled>
           <button
             onClick={submit}
-            className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 font-medium text-white hover:bg-indigo-400"
+            className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 font-medium text-slate-900 dark:text-white hover:bg-indigo-400"
           >
             <BadgeCheck size={16} /> Create & grant access
           </button>
@@ -694,7 +694,7 @@ function Attendance({ people, setPeople }: { people: Employee[]; setPeople: Reac
   const downloadCSV = () => {
     const headers = ["Employee ID", "Name", "Department", ...dow, "This Month"];
     const rows = filteredPeople.map((e) => {
-      const statuses = e.week.map(s => s === "present" ? "P" : s === "absent" ? "A" : s === "half" ? "H" : s === "leave" ? "LV" : "OFF");
+      const statuses = e.week.map(s => s === "present" ? "P" : s === "absent" ? "A" : s === "half" ? "H" : s === "leave" ? "LV" : s === "pending" ? "-" : "OFF");
       return [e.memberId, e.name, e.department, ...statuses, `${e.attendancePct}%`];
     });
 
@@ -728,11 +728,11 @@ function Attendance({ people, setPeople }: { people: Employee[]; setPeople: Reac
       />
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <Filter size={14} className="text-slate-400" />
+          <Filter size={14} className="text-slate-500 dark:text-slate-400" />
           <select
             value={deptFilter}
             onChange={(e) => setDeptFilter(e.target.value)}
-            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm outline-none"
+            className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-2 py-1 text-sm outline-none"
           >
             {departments.map((d) => (
               <option key={d} value={d}>
@@ -744,7 +744,7 @@ function Attendance({ people, setPeople }: { people: Employee[]; setPeople: Reac
         <select
           value={monthFilter}
           onChange={(e) => setMonthFilter(e.target.value)}
-          className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm outline-none"
+          className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-2 py-1 text-sm outline-none"
         >
           <option value="06">June</option>
           <option value="07">July</option>
@@ -753,7 +753,7 @@ function Attendance({ people, setPeople }: { people: Employee[]; setPeople: Reac
         <select
           value={yearFilter}
           onChange={(e) => setYearFilter(e.target.value)}
-          className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm outline-none"
+          className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-2 py-1 text-sm outline-none"
         >
           <option value="2025">2025</option>
           <option value="2026">2026</option>
@@ -761,7 +761,7 @@ function Attendance({ people, setPeople }: { people: Employee[]; setPeople: Reac
         <select
           value={dayFilter}
           onChange={(e) => setDayFilter(e.target.value)}
-          className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm outline-none"
+          className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-2 py-1 text-sm outline-none"
         >
           <option value="all">All Days</option>
           <option value="mon">Monday</option>
@@ -775,14 +775,14 @@ function Attendance({ people, setPeople }: { people: Employee[]; setPeople: Reac
         <div className="ml-auto flex items-center gap-2 print-hidden">
           <button
             onClick={downloadCSV}
-            className="flex items-center gap-2 rounded-lg bg-indigo-500/20 px-3 py-1.5 text-sm font-medium text-indigo-300 hover:bg-indigo-500/30 transition-colors"
+            className="flex items-center gap-2 rounded-lg bg-indigo-500/20 px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/30 transition-colors"
           >
             <Download size={14} />
             CSV
           </button>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium hover:bg-white/10 transition-colors"
+            className="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-1.5 text-sm font-medium hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
           >
             <Printer size={14} />
             PDF
@@ -791,13 +791,13 @@ function Attendance({ people, setPeople }: { people: Employee[]; setPeople: Reac
       </div>
       <Panel>
         <div className="space-y-1">
-          <div className="muted grid grid-cols-[1.6fr_auto_1fr] items-center gap-4 border-b border-white/5 pb-2 text-xs">
+          <div className="muted grid grid-cols-[1.6fr_auto_1fr] items-center gap-4 border-b border-slate-200 dark:border-white/5 pb-2 text-xs">
             <span>Member</span>
             <span className="hidden sm:flex gap-1.5">
               {dow.map((d, i) => (
                 <span key={i} className="w-8 text-center text-[10px] leading-tight">
                   {d.split(" ")[0]}<br/>
-                  <span className="text-white/50">{d.split(" ")[1]}</span>
+                  <span className="text-slate-900 dark:text-white/50">{d.split(" ")[1]}</span>
                 </span>
               ))}
             </span>
@@ -827,12 +827,12 @@ function Attendance({ people, setPeople }: { people: Employee[]; setPeople: Reac
                       title={`Click to edit (${s})`}
                     />
                     {editingAttendance?.empId === e.id && editingAttendance?.dayIndex === i && (
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-slate-800 border border-white/10 rounded-lg shadow-xl p-1 z-50 flex flex-col gap-1 w-28">
-                        {(["present", "absent", "half", "leave", "off"] as Status[]).map((status) => (
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg shadow-xl p-1 z-50 flex flex-col gap-1 w-28">
+                        {(["present", "absent", "half", "leave", "off", "pending"] as Status[]).map((status) => (
                           <button
                             key={status}
                             onClick={() => updateAttendance(e.id, i, status)}
-                            className="text-left px-2 py-1.5 text-xs hover:bg-white/10 rounded flex items-center justify-between transition-colors"
+                            className="text-left px-2 py-1.5 text-xs hover:bg-slate-200 dark:hover:bg-white/10 rounded flex items-center justify-between transition-colors"
                           >
                             <span className="capitalize">{status}</span>
                             <span
@@ -847,7 +847,7 @@ function Attendance({ people, setPeople }: { people: Employee[]; setPeople: Reac
                 ))}
               </div>
               <div className="flex items-center justify-end gap-3">
-                <div className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-white/10 sm:block">
+                <div className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10 sm:block">
                   <div
                     className="h-full rounded-full"
                     style={{
@@ -1002,12 +1002,12 @@ function Payroll() {
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <Filter size={14} className="text-slate-400" />
+          <Filter size={14} className="text-slate-500 dark:text-slate-400" />
           <span className="muted text-xs">Department:</span>
           <select
             value={deptFilter}
             onChange={(e) => setDeptFilter(e.target.value)}
-            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm outline-none"
+            className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-2 py-1 text-sm outline-none"
           >
             {departments.map((d) => (
               <option key={d} value={d}>
@@ -1023,8 +1023,8 @@ function Payroll() {
               onClick={() => setStatusFilter(s)}
               className={`rounded-full px-3 py-1 text-xs capitalize ${
                 statusFilter === s
-                  ? "bg-indigo-500 text-white"
-                  : "border border-white/10 bg-white/5 muted hover:bg-white/10"
+                  ? "bg-indigo-500 text-slate-900 dark:text-white"
+                  : "border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 muted hover:bg-slate-200 dark:hover:bg-white/10"
               }`}
             >
               {s === "all" ? "All" : s}
@@ -1037,7 +1037,7 @@ function Payroll() {
         <div className="table-wrap">
           <table className="w-full text-sm">
             <thead>
-              <tr className="muted border-b border-white/5 text-left text-xs">
+              <tr className="muted border-b border-slate-200 dark:border-white/5 text-left text-xs">
                 <th className="pb-3 font-medium">Member</th>
                 <th className="pb-3 font-medium hidden sm:table-cell">Dept</th>
                 <th className="pb-3 text-right font-medium">Gross</th>
@@ -1053,7 +1053,7 @@ function Payroll() {
               {filtered.map((r) => (
                 <tr
                   key={r.id}
-                  className="border-b border-white/5 last:border-0"
+                  className="border-b border-slate-200 dark:border-white/5 last:border-0"
                 >
                   <td className="py-3">
                     <div className="font-medium">{r.name}</div>
@@ -1107,13 +1107,13 @@ function Payroll() {
                       <div className="flex justify-end gap-1">
                         <button
                           onClick={() => setEditingId(null)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-white"
+                          className="rounded-lg p-1.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
                         >
                           <X size={14} />
                         </button>
                         <button
                           onClick={() => saveEdit(r.id)}
-                          className="rounded-lg bg-indigo-500/20 p-1.5 text-indigo-300 hover:bg-indigo-500/30"
+                          className="rounded-lg bg-indigo-500/20 p-1.5 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/30"
                         >
                           <Save size={14} />
                         </button>
@@ -1121,7 +1121,7 @@ function Payroll() {
                     ) : (
                       <button
                         onClick={() => startEdit(r)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-indigo-300"
+                        className="rounded-lg p-1.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-indigo-300"
                       >
                         <Pencil size={14} />
                       </button>
@@ -1131,7 +1131,7 @@ function Payroll() {
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t border-white/10">
+              <tr className="border-t border-slate-200 dark:border-white/10">
                 <td className="pt-3 font-medium" colSpan={4}>
                   Total net payable
                 </td>
@@ -1194,7 +1194,7 @@ function LeaveView() {
               key={f}
               onClick={() => setFilter(f)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                filter === f ? "bg-white text-black" : "bg-white/10 text-white hover:bg-white/20"
+                filter === f ? "bg-white text-black" : "bg-slate-200 dark:bg-white/10 text-slate-900 dark:text-white hover:bg-white/20"
               }`}
             >
               {f}
@@ -1207,7 +1207,7 @@ function LeaveView() {
               key={f}
               onClick={() => setDateFilter(f)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                dateFilter === f ? "bg-white text-black" : "bg-white/10 text-white hover:bg-white/20"
+                dateFilter === f ? "bg-white text-black" : "bg-slate-200 dark:bg-white/10 text-slate-900 dark:text-white hover:bg-white/20"
               }`}
             >
               {f}
@@ -1217,7 +1217,7 @@ function LeaveView() {
       </div>
       <div className="grid gap-3">
         {filteredLeaves.length === 0 ? (
-          <div className="glass rounded-2xl p-6 text-center text-sm text-slate-400">
+          <div className="glass rounded-2xl p-6 text-center text-sm text-slate-500 dark:text-slate-400">
             No leave requests found.
           </div>
         ) : (
@@ -1229,13 +1229,13 @@ function LeaveView() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-40 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-white">{l.employeeName}</span>
+                    <span className="font-medium text-slate-900 dark:text-white">{l.employeeName}</span>
                     <span className="muted text-xs">· {l.id}</span>
                   </div>
                   <div className="muted text-sm mt-1 mb-2">
                     {l.type} Leave · {l.startDate} &rarr; {l.endDate} ({l.days}d)
                   </div>
-                  <div className="text-sm text-slate-300">
+                  <div className="text-sm text-slate-700 dark:text-slate-300">
                     &ldquo;{l.reason}&rdquo;
                   </div>
                   <div className="text-xs text-slate-500 mt-2">
@@ -1250,12 +1250,12 @@ function LeaveView() {
                         placeholder="HR Remarks (optional)"
                         value={remarks[l.id] || ""}
                         onChange={(e) => setRemarks({...remarks, [l.id]: e.target.value})}
-                        className="w-full mb-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs outline-none"
+                        className="w-full mb-2 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-2 py-1.5 text-xs outline-none"
                       />
                       <div className="flex gap-2 justify-end w-full">
                         <button
                           onClick={() => decide(l.id, "rejected", l.employeeName)}
-                          className="flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-rose-300 hover:bg-white/5"
+                          className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-white/10 px-3 py-1.5 text-sm text-rose-300 hover:bg-slate-100 dark:hover:bg-white/5"
                         >
                           <X size={14} /> Reject
                         </button>
@@ -1282,25 +1282,25 @@ function LeaveView() {
                 </div>
               </div>
               
-              <div className="mt-4 pt-3 border-t border-white/5">
+              <div className="mt-4 pt-3 border-t border-slate-200 dark:border-white/5">
                 <button
                   onClick={() => setExpandedId(expandedId === l.id ? null : l.id)}
-                  className="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-medium"
+                  className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1 font-medium"
                 >
                   {expandedId === l.id ? "Hide" : "Show"} Audit Trail & Timeline
                 </button>
                 
                 {expandedId === l.id && (
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-xl bg-black/20 p-3 border border-white/5">
-                      <h4 className="text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wider">Versions</h4>
+                    <div className="rounded-xl bg-black/20 p-3 border border-slate-200 dark:border-white/5">
+                      <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wider">Versions</h4>
                       {l.versions.length === 0 ? (
                         <div className="text-xs text-slate-500">No edits made.</div>
                       ) : (
                         <div className="space-y-3">
                           {[...l.versions].reverse().map((v, idx) => (
-                            <div key={v.id} className="text-xs text-slate-400 border-l-2 border-indigo-500/30 pl-2">
-                              <div className="font-medium text-indigo-300">v{l.versions.length - idx} <span className="muted font-normal">· {new Date(v.editedAt).toLocaleString()}</span></div>
+                            <div key={v.id} className="text-xs text-slate-500 dark:text-slate-400 border-l-2 border-indigo-500/30 pl-2">
+                              <div className="font-medium text-indigo-600 dark:text-indigo-300">v{l.versions.length - idx} <span className="muted font-normal">· {new Date(v.editedAt).toLocaleString()}</span></div>
                               <div className="mt-1">{v.startDate} &rarr; {v.endDate} ({v.days}d)</div>
                               <div>{v.reason}</div>
                             </div>
@@ -1309,15 +1309,15 @@ function LeaveView() {
                       )}
                     </div>
                     
-                    <div className="rounded-xl bg-black/20 p-3 border border-white/5">
-                      <h4 className="text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wider">Activity Timeline</h4>
+                    <div className="rounded-xl bg-black/20 p-3 border border-slate-200 dark:border-white/5">
+                      <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wider">Activity Timeline</h4>
                       <div className="space-y-3">
                         {[...l.timeline].reverse().map((t) => (
-                          <div key={t.id} className="text-xs text-slate-400 border-l-2 border-emerald-500/30 pl-2">
+                          <div key={t.id} className="text-xs text-slate-500 dark:text-slate-400 border-l-2 border-emerald-500/30 pl-2">
                             <div className="font-medium text-emerald-300">{t.action}</div>
                             <div className="mt-0.5">by {t.actorName} ({t.actorRole})</div>
                             <div className="muted">{new Date(t.timestamp).toLocaleString()}</div>
-                            {t.remarks && <div className="mt-1 text-slate-300">Note: {t.remarks}</div>}
+                            {t.remarks && <div className="mt-1 text-slate-700 dark:text-slate-300">Note: {t.remarks}</div>}
                           </div>
                         ))}
                       </div>
@@ -1357,7 +1357,7 @@ function BroadcastView() {
           items.length > 0 ? (
             <button
               onClick={clear}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
+              className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 text-sm hover:bg-slate-200 dark:hover:bg-white/10"
             >
               Clear all
             </button>
@@ -1371,21 +1371,21 @@ function BroadcastView() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Title (e.g. Office closed Friday)"
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+              className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none"
             />
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
               placeholder="Message…"
               rows={4}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+              className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none"
             />
             <label className="text-sm">
               <span className="muted mb-1 block text-xs">Audience</span>
               <select
                 value={audience}
                 onChange={(e) => setAudience(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 outline-none"
+                className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 outline-none"
               >
                 <option>All employees</option>
                 <option>In office</option>
@@ -1396,7 +1396,7 @@ function BroadcastView() {
             </label>
             <button
               onClick={publish}
-              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 font-medium text-white hover:bg-indigo-400"
+              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 font-medium text-slate-900 dark:text-white hover:bg-indigo-400"
             >
               <Send size={16} /> Publish broadcast
             </button>
@@ -1412,10 +1412,10 @@ function BroadcastView() {
               {items.map((b) => (
                 <div
                   key={b.id}
-                  className="rounded-xl border border-white/5 bg-white/5 p-3"
+                  className="rounded-xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/5 p-3"
                 >
                   <div className="flex items-center gap-2">
-                    <Megaphone size={15} className="text-indigo-300" />
+                    <Megaphone size={15} className="text-indigo-600 dark:text-indigo-300" />
                     <span className="font-medium">{b.title}</span>
                   </div>
                   <div className="muted mt-1 text-sm">{b.body}</div>
@@ -1548,11 +1548,11 @@ function Billing() {
                   className={`relative rounded-2xl border p-4 text-left transition flex flex-col justify-between ${
                     selectedTier === tier.id
                       ? "border-indigo-400 bg-indigo-500/10"
-                      : "border-white/10 bg-white/5 hover:bg-white/8"
+                      : "border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 hover:bg-white/8"
                   }`}
                 >
                   {tier.badge && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 whitespace-nowrap rounded-full bg-indigo-500 px-2 py-0.5 text-xs text-white shadow-lg">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 whitespace-nowrap rounded-full bg-indigo-500 px-2 py-0.5 text-xs text-slate-900 dark:text-white shadow-lg">
                       <Sparkles size={12} /> {tier.badge}
                     </span>
                   )}
@@ -1570,8 +1570,8 @@ function Billing() {
                         : `${INR(pm)}/mo · billed every ${tier.months} months`}
                     </div>
                   </div>
-                  <div className="mt-4 pt-3 border-t border-white/10">
-                    <div className="text-sm text-slate-300 flex items-center gap-2">
+                  <div className="mt-4 pt-3 border-t border-slate-200 dark:border-white/10">
+                    <div className="text-sm text-slate-700 dark:text-slate-300 flex items-center gap-2">
                       <Users size={14} className="text-indigo-400" />
                       {(tier.includedSeats || (tier.id === 'monthly' ? 300 : tier.id === 'sixmonth' ? 1000 : 2000)).toLocaleString()} Seats Included
                     </div>
@@ -1580,7 +1580,7 @@ function Billing() {
                         Save {INR(saved)} vs monthly
                       </div>
                     )}
-                    <ul className="mt-3 flex flex-col gap-1.5 text-xs text-slate-400">
+                    <ul className="mt-3 flex flex-col gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                       {tier.id === "monthly" && (
                         <>
                           <li>• AI HR Assistant</li>
@@ -1608,7 +1608,7 @@ function Billing() {
               );
             })}
           </div>
-          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="muted text-xs">You&apos;ll be charged</div>
               <div className="text-xl font-semibold">
@@ -1649,7 +1649,7 @@ function Billing() {
                 };
                 document.body.appendChild(script);
               }}
-              className="rounded-xl bg-indigo-500 px-4 py-2.5 font-medium text-white hover:bg-indigo-400"
+              className="rounded-xl bg-indigo-500 px-4 py-2.5 font-medium text-slate-900 dark:text-white hover:bg-indigo-400"
             >
               Pay with Razorpay
             </button>
@@ -1699,17 +1699,17 @@ function Billing() {
           </p>
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex-1">
-              <label className="block text-sm mb-1 text-slate-300">Number of Seats</label>
+              <label className="block text-sm mb-1 text-slate-700 dark:text-slate-300">Number of Seats</label>
               <input 
                 type="number" 
                 min="50"
                 value={extraSeatsInput} 
                 onChange={(e) => setExtraSeatsInput(e.target.value)}
                 placeholder="e.g. 50"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500"
+                className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500"
               />
             </div>
-            <div className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col justify-center">
+            <div className="flex-1 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-3 flex flex-col justify-center">
               <span className="muted text-xs block">Payable Amount</span>
               <span className="text-xl font-semibold text-emerald-400">
                 {INR(extraSeatsCost)}
@@ -1719,7 +1719,7 @@ function Billing() {
           <button 
             onClick={handlePurchaseExtraSeats}
             disabled={extraSeats < 50}
-            className="w-full mt-4 flex items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 font-medium text-white hover:bg-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full mt-4 flex items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 font-medium text-slate-900 dark:text-white hover:bg-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <CreditCard size={18} /> Purchase Seats with Razorpay
           </button>
@@ -1729,7 +1729,7 @@ function Billing() {
           <div className="table-wrap h-full max-h-[220px] overflow-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="muted border-b border-white/5 text-left text-xs">
+                <tr className="muted border-b border-slate-200 dark:border-white/5 text-left text-xs">
                   <th className="pb-3 font-medium">Invoice</th>
                   <th className="pb-3 font-medium">Date</th>
                   <th className="pb-3 text-right font-medium">Amount</th>
@@ -1740,7 +1740,7 @@ function Billing() {
                 {invoices.map((iv) => (
                   <tr
                     key={iv.id}
-                    className="border-b border-white/5 last:border-0"
+                    className="border-b border-slate-200 dark:border-white/5 last:border-0"
                   >
                     <td className="py-3 font-mono text-xs">{iv.id}</td>
                     <td className="muted py-3">{iv.date}</td>
@@ -1837,12 +1837,12 @@ function GeofenceView() {
                   placeholder="e.g. Connaught Place, New Delhi"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500/50"
+                  className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500/50"
                 />
                 <button
                   type="submit"
                   disabled={searching}
-                  className="flex items-center justify-center rounded-lg bg-white/10 px-4 text-slate-300 hover:bg-white/20 disabled:opacity-50"
+                  className="flex items-center justify-center rounded-lg bg-slate-200 dark:bg-white/10 px-4 text-slate-700 dark:text-slate-300 hover:bg-white/20 disabled:opacity-50"
                 >
                   <Search size={18} />
                 </button>
@@ -1859,7 +1859,7 @@ function GeofenceView() {
                     required
                     value={lat}
                     onChange={(e) => setLat(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500/50"
+                    className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500/50"
                   />
                 </div>
                 <div>
@@ -1870,7 +1870,7 @@ function GeofenceView() {
                     required
                     value={lng}
                     onChange={(e) => setLng(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500/50"
+                    className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500/50"
                   />
                 </div>
                 <div className="sm:col-span-2">
@@ -1883,7 +1883,7 @@ function GeofenceView() {
                     min="10"
                     value={radius}
                     onChange={(e) => setRadius(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500/50"
+                    className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-2.5 outline-none focus:border-indigo-500/50"
                   />
                   <p className="muted mt-2 text-xs">
                     Employees must be within this distance from the office to mark attendance. Default is 150m.
@@ -1911,7 +1911,7 @@ function GeofenceView() {
             </form>
           </div>
 
-          <div className="h-[450px] w-full overflow-hidden rounded-xl border border-white/10 relative bg-[#0e1020]">
+          <div className="h-[450px] w-full overflow-hidden rounded-xl border border-slate-200 dark:border-white/10 relative bg-[#0e1020]">
             <DynamicMap 
               lat={center.lat} 
               lng={center.lng} 
@@ -1921,7 +1921,7 @@ function GeofenceView() {
                 setLng(newLng.toString());
               }} 
             />
-            <div className="absolute top-2 left-16 z-[1000] pointer-events-none rounded bg-black/50 px-2 py-1 text-xs text-white backdrop-blur-md">
+            <div className="absolute top-2 left-16 z-[1000] pointer-events-none rounded bg-black/20 dark:bg-black/50 px-2 py-1 text-xs text-slate-900 dark:text-white backdrop-blur-md">
               Click map to move pin
             </div>
           </div>
@@ -1935,7 +1935,7 @@ function GeofenceView() {
             <div className="table-wrap">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="muted border-b border-white/5 text-left text-xs">
+                  <tr className="muted border-b border-slate-200 dark:border-white/5 text-left text-xs">
                     <th className="pb-3 font-medium">Timestamp</th>
                     <th className="pb-3 font-medium">Location Name / Address</th>
                     <th className="pb-3 font-medium">Latitude</th>
@@ -1945,7 +1945,7 @@ function GeofenceView() {
                 </thead>
                 <tbody>
                   {history.map((record) => (
-                    <tr key={record.id} className="border-b border-white/5 last:border-0 hover:bg-white/5">
+                    <tr key={record.id} className="border-b border-slate-200 dark:border-white/5 last:border-0 hover:bg-slate-100 dark:hover:bg-white/5">
                       <td className="py-3 text-xs muted">{new Date(record.timestamp).toLocaleString()}</td>
                       <td className="py-3 font-medium">{record.address || "N/A"}</td>
                       <td className="py-3 font-mono text-xs">{record.lat}</td>

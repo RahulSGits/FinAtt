@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
 @import "leaflet/dist/leaflet.css";
 @theme inline {
   --font-sans: var(--font-geist-sans);
@@ -10,9 +11,30 @@
 }
 
 :root {
+  --bg: #f0f4f8;
+  --panel: rgba(255, 255, 255, 0.65);
+  --panel-solid: #ffffff;
+  --panel-strong: rgba(255, 255, 255, 0.82);
+  --border: rgba(99, 102, 241, 0.08);
+  --text: #0f172a;
+  --muted: #64748b;
+  --accent: #4f46e5;
+  --accent2: #0ea5e9;
+  --accent3: #9333ea;
+  --green: #10b981;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --blue: #3b82f6;
+  --grid-line: rgba(99, 102, 241, 0.04);
+  --sidebar-bg: rgba(255, 255, 255, 0.55);
+  --header-bg: rgba(248, 250, 252, 0.88);
+}
+
+.dark {
   --bg: #06070f;
   --panel: rgba(255, 255, 255, 0.04);
   --panel-solid: #0e1020;
+  --panel-strong: rgba(14, 16, 32, 0.75);
   --border: rgba(255, 255, 255, 0.08);
   --text: #e8eaf3;
   --muted: #98a2b8;
@@ -23,6 +45,9 @@
   --amber: #fbbf24;
   --red: #f87171;
   --blue: #60a5fa;
+  --grid-line: rgba(255, 255, 255, 0.035);
+  --sidebar-bg: transparent;
+  --header-bg: rgba(9, 10, 20, 0.92);
 }
 
 * {
@@ -55,10 +80,20 @@ h1 {
   inset: 0;
   z-index: -2;
   overflow: hidden;
+}
+.dark .aurora {
   background:
     radial-gradient(60% 50% at 15% 10%, rgba(99, 102, 241, 0.18), transparent 60%),
     radial-gradient(50% 45% at 85% 15%, rgba(34, 211, 238, 0.14), transparent 60%),
     radial-gradient(55% 50% at 75% 90%, rgba(168, 85, 247, 0.16), transparent 60%),
+    var(--bg);
+}
+:root:not(.dark) .aurora,
+:not(.dark) > .aurora {
+  background:
+    radial-gradient(60% 50% at 10% 0%, rgba(99, 102, 241, 0.08), transparent 55%),
+    radial-gradient(50% 45% at 90% 10%, rgba(14, 165, 233, 0.07), transparent 55%),
+    radial-gradient(55% 50% at 75% 100%, rgba(168, 85, 247, 0.06), transparent 55%),
     var(--bg);
 }
 
@@ -67,8 +102,8 @@ h1 {
   inset: 0;
   z-index: -1;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
 }
@@ -79,14 +114,30 @@ h1 {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
+:root:not(.dark) .glass,
+:not(.dark) > .glass {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 20px -8px rgba(99, 102, 241, 0.1), 0 1px 3px rgba(0, 0, 0, 0.02);
+}
 
 .glass-strong {
-  background: rgba(14, 16, 32, 0.75);
+  background: var(--panel-strong);
   border: 1px solid var(--border);
   backdrop-filter: blur(20px);
 }
+:root:not(.dark) .glass-strong,
+:not(.dark) > .glass-strong {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 8px 32px -8px rgba(99, 102, 241, 0.15), 0 1px 3px rgba(0, 0, 0, 0.02);
+}
 
 .gradient-text {
+  background: linear-gradient(120deg, var(--accent) 0%, var(--accent2) 50%, var(--accent3) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.dark .gradient-text {
   background: linear-gradient(120deg, #a5b4fc 0%, #22d3ee 50%, #a855f7 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -109,9 +160,14 @@ h1 {
 .lift {
   transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s;
 }
-.lift:hover {
+.dark .lift:hover {
   transform: translateY(-4px);
   box-shadow: 0 20px 45px -20px rgba(0, 0, 0, 0.7);
+}
+:root:not(.dark) .lift:hover,
+:not(.dark) > .lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px -16px rgba(99, 102, 241, 0.18), 0 8px 20px -8px rgba(0, 0, 0, 0.08);
 }
 
 @keyframes float {
@@ -141,8 +197,8 @@ h1 {
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
 .muted { color: var(--muted); }
 
@@ -153,7 +209,7 @@ h1 {
   scrollbar-width: thin;
 }
 .table-wrap::-webkit-scrollbar { height: 6px; }
-.table-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+.table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
 /* ── Touch target helpers (min 44px for mobile a11y) ──────────────────── */
 .touch-target {
@@ -180,6 +236,9 @@ h1 {
   overflow-y: auto;
   z-index: 50;
 }
+@media (min-width: 640px) {
+  .notif-dropdown { width: 384px; }
+}
 @media (max-width: 400px) {
   .notif-dropdown {
     width: calc(100vw - 32px);
@@ -189,7 +248,7 @@ h1 {
 
 /* ── Inline-edit input ────────────────────────────────────────────────── */
 .inline-edit {
-  background: rgba(255,255,255,0.06);
+  background: var(--panel);
   border: 1px solid rgba(99, 102, 241, 0.4);
   border-radius: 8px;
   padding: 4px 8px;
@@ -248,3 +307,4 @@ h1 {
     width: 100% !important;
   }
 }
+/* Force Next.js Turbopack Cache Invalidation */
