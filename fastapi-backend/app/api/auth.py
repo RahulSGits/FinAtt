@@ -71,9 +71,7 @@ async def login(req: LoginRequest):
         "user": {
             "id": user.id,
             "email": user.email,
-            "name": f"{
-                employee.firstName} {
-                employee.lastName}" if employee else user.email.split("@")[0],
+            "name": f"{employee.firstName} {employee.lastName}" if employee else user.email.split("@")[0],
             "role": user.role.lower(),
             "companyId": company.slug,
             "faceEnrolled": faceEnrolled}}
