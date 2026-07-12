@@ -91,7 +91,21 @@ export function useGeofenceSettings() {
     );
   };
 
-  return { config, updateConfig, history };
+  const deleteHistoryRecord = (id: string) => {
+    setHistory((prev) => {
+      const newHistory = prev.filter(record => record.id !== id);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: HISTORY_KEY,
+          newValue: JSON.stringify(newHistory),
+        })
+      );
+      return newHistory;
+    });
+  };
+
+  return { config, updateConfig, history, deleteHistoryRecord };
 }
 
 /**

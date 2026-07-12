@@ -35,6 +35,7 @@ import {
   Search,
   Download,
   Printer,
+  Trash2,
 } from "lucide-react";
 import {
   Area,
@@ -1521,6 +1522,13 @@ function Billing() {
 
   const handlePurchaseExtraSeats = () => {
     if (extraSeats <= 0) return;
+    
+    // Check if the user has an active subscription
+    if (!(tenant.status === "active" || tenant.status === "trial")) {
+      alert("You need an active subscription first. Which subscription plan do you want to choose?");
+      return;
+    }
+
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.onload = () => {
@@ -1821,7 +1829,7 @@ const tooltipStyle = {
 // ── Geofence ─────────────────────────────────────────────────────────────
 
 function GeofenceView() {
-  const { config, updateConfig, history } = useGeofenceSettings();
+  const { config, updateConfig, history, deleteHistoryRecord } = useGeofenceSettings();
   const [lat, setLat] = useState(config.lat.toString());
   const [lng, setLng] = useState(config.lng.toString());
   const [radius, setRadius] = useState(config.radius.toString());
@@ -1991,6 +1999,7 @@ function GeofenceView() {
                     <th className="pb-3 font-medium">Latitude</th>
                     <th className="pb-3 font-medium">Longitude</th>
                     <th className="pb-3 font-medium text-right">Radius (m)</th>
+                    <th className="pb-3 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2001,6 +2010,15 @@ function GeofenceView() {
                       <td className="py-3 font-mono text-xs">{record.lat}</td>
                       <td className="py-3 font-mono text-xs">{record.lng}</td>
                       <td className="py-3 text-right">{record.radius}</td>
+                      <td className="py-3 text-right">
+                        <button
+                          onClick={() => deleteHistoryRecord(record.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                          title="Delete record"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

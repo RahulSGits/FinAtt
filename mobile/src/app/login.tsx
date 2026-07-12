@@ -35,6 +35,7 @@ export default function LoginScreen() {
       } else if (user.role === "admin") {
         router.replace("/admin-dashboard");
       } else {
+        // @ts-ignore: dynamic route for Expo
         router.replace("/(employee)");
       }
     } catch (error: any) {

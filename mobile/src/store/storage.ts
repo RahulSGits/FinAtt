@@ -4,6 +4,7 @@ import { MMKV } from "react-native-mmkv";
 let storage: MMKV | null = null;
 
 if (Platform.OS !== "web") {
+  // @ts-ignore
   storage = new MMKV({
     id: "geoselfie-storage",
     encryptionKey: "secure-enterprise-key-geoselfie"
@@ -29,6 +30,7 @@ export const secureStorage = {
     if (Platform.OS === "web") {
       localStorage.removeItem(key);
     } else {
+      // @ts-ignore
       storage?.delete(key);
     }
   },
