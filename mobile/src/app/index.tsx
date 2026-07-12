@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useAuthStore } from "../store/auth";
 
@@ -18,7 +18,7 @@ export default function Index() {
         router.replace("/(employee)");
       }
     }
-  }, [isLoading, isAuthenticated, user]);
+  }, [isLoading, isAuthenticated, user, router]);
 
   if (isLoading) {
     return (

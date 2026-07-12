@@ -63,6 +63,7 @@ export default function DashboardShell({
   );
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
   const { tenants } = useTenants();
   const tenant = tenants.find((t) => t.id === "t1") || tenants[0];
@@ -239,7 +240,7 @@ export default function DashboardShell({
                   {notifs.length === 0 ? (
                     <div className="muted py-8 text-center text-sm flex flex-col items-center gap-2">
                       <Bell size={24} className="opacity-20" />
-                      <p>You're all caught up!</p>
+                      <p>You&apos;re all caught up!</p>
                     </div>
                   ) : (
                     <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">

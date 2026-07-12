@@ -13,7 +13,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     checkAuth();
-  }, []);
+  }, [checkAuth]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -28,7 +28,7 @@ export default function RootLayout() {
       // We will refine this as we build out the dashboards.
       router.replace("/");
     }
-  }, [isAuthenticated, isLoading, segments]);
+  }, [isAuthenticated, isLoading, segments, router]);
 
   return (
     <QueryClientProvider client={queryClient}>

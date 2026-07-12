@@ -8,6 +8,7 @@ export function useCheckIn() {
     const val = localStorage.getItem("gs_checked_in");
     const time = localStorage.getItem("gs_checked_in_time");
     if (val === "true") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCheckedIn(true);
       if (time) {
         setCheckInTime(time);

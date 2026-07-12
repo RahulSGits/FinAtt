@@ -1,7 +1,6 @@
 import { create } from "zustand";
 
-import { Platform } from "react-native";
-
+import { secureStorage } from "./storage";
 export interface User {
   id: string;
   email: string;
@@ -21,7 +20,7 @@ interface AuthState {
   enrollFace: () => Promise<void>;
 }
 
-import { secureStorage } from "./storage";
+
 
 const setToken = async (key: string, value: string) => {
   secureStorage.setItem(key, value);

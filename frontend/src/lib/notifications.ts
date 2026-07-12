@@ -117,7 +117,6 @@ export function useNotifications(role?: string, userId?: string) {
       window.removeEventListener("storage", load);
       window.removeEventListener(EVT, load);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, userId]);
 
   const unread = items.filter((n) => !n.read).length;

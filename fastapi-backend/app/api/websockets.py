@@ -3,6 +3,7 @@ from typing import List, Dict
 
 router = APIRouter(tags=["WebSockets"])
 
+
 class ConnectionManager:
     def __init__(self):
         # Store active connections grouped by companyId
@@ -29,7 +30,9 @@ class ConnectionManager:
                 except Exception:
                     pass
 
+
 manager = ConnectionManager()
+
 
 @router.websocket("/ws/admin/{company_id}")
 async def websocket_endpoint(websocket: WebSocket, company_id: str):
@@ -44,7 +47,13 @@ async def websocket_endpoint(websocket: WebSocket, company_id: str):
         manager.disconnect(websocket, company_id)
 
 # Helper method to be called from attendance.py when a punch happens
-async def notify_new_punch(company_id: str, employee_id: str, punch_type: str, timestamp: str):
+
+
+async def notify_new_punch(
+        company_id: str,
+        employee_id: str,
+        punch_type: str,
+        timestamp: str):
     message = {
         "event": "new_attendance",
         "data": {

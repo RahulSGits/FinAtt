@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { useAuthStore } from "../store/auth";
 import { useRouter } from "expo-router";
 import { CreditCard, Building2, TrendingUp, ShieldCheck } from "lucide-react-native";

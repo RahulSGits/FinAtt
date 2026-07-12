@@ -1,12 +1,14 @@
-from fastapi import FastAPI, Request
+from app.api import attendance, auth, websockets
+from dotenv import load_dotenv
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from prisma import Prisma
 
 db = Prisma()
 
-from dotenv import load_dotenv
 load_dotenv()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -31,11 +33,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "service": "geoselfie-backend"}
 
-from app.api import attendance, auth, websockets
 app.include_router(attendance.router)
 app.include_router(auth.router)
 app.include_router(websockets.router)

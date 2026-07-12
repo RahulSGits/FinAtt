@@ -8,8 +8,7 @@ import { useRouter } from "expo-router";
 export default function EmployeeDashboard() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
-  const { addRecord, queue } = useAttendanceStore();
-  const [loading, setLoading] = useState(false);
+  const { queue } = useAttendanceStore();
   const [locationStatus, setLocationStatus] = useState<string>("Checking location...");
 
   useEffect(() => {

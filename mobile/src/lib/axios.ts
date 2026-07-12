@@ -7,6 +7,7 @@ const baseURL = Platform.OS === "android"
   ? "http://10.0.2.2:3000/api" 
   : "http://localhost:3000/api";
 
+// eslint-disable-next-line import/no-named-as-default-member
 export const api = axios.create({
   baseURL,
   headers: {

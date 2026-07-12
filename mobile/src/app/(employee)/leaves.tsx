@@ -1,10 +1,10 @@
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuthStore } from '../../store/auth';
-import { FileText, Download } from 'lucide-react-native';
+// import { useAuthStore } from '../../store/auth';
+// import { FileText, Download } from 'lucide-react-native';
 
 export default function LeavesScreen() {
-  const { user } = useAuthStore();
+  // const { user } = useAuthStore();
   const router = useRouter();
 
   return (

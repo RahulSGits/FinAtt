@@ -37,7 +37,7 @@ export default function FaceScanScreen() {
     setStatusText("Scanning face...");
 
     try {
-      const photo = await camera.current.takePhoto({
+      await camera.current.takePhoto({
         flash: 'off'
       });
 

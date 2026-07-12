@@ -4,6 +4,7 @@ import base64
 from typing import Optional, List
 import random
 
+
 def base64_to_image(base64_string: str) -> np.ndarray:
     """Converts a base64 encoded image string to an OpenCV image."""
     if "," in base64_string:
@@ -12,6 +13,7 @@ def base64_to_image(base64_string: str) -> np.ndarray:
     np_arr = np.frombuffer(img_data, np.uint8)
     img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
     return img
+
 
 class FaceService:
     @staticmethod
@@ -23,13 +25,16 @@ class FaceService:
         img = base64_to_image(image_base64)
         if img is None:
             return None
-            
+
         # Mock encoding for fast testing without compiling dlib C++
         mock_encoding = [random.uniform(0, 1) for _ in range(128)]
         return mock_encoding
 
     @staticmethod
-    def verify_face(image_base64: str, stored_encoding: List[float], tolerance: float = 0.5) -> dict:
+    def verify_face(
+            image_base64: str,
+            stored_encoding: List[float],
+            tolerance: float = 0.5) -> dict:
         """
         Verifies a live face against a stored 128-dimensional encoding.
         Returns dict with match status and Euclidean distance.
@@ -37,7 +42,7 @@ class FaceService:
         img = base64_to_image(image_base64)
         if img is None:
             return {"match": False, "error": "Invalid image"}
-            
+
         # Mock verification for fast testing
         return {
             "match": True,
