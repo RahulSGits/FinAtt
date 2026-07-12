@@ -8,6 +8,7 @@ export interface User {
   name: string;
   role: "admin" | "hr" | "employee";
   companyId?: string;
+  faceEnrolled?: boolean;
 }
 
 interface AuthState {
@@ -17,6 +18,7 @@ interface AuthState {
   login: (user: User, accessToken: string, refreshToken: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  enrollFace: () => Promise<void>;
 }
 
 import { secureStorage } from "./storage";
@@ -63,4 +65,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ isLoading: false });
     }
   },
+  enrollFace: async () => {
+    set((state) => {
+      if (state.user) {
+        const updatedUser = { ...state.user, faceEnrolled: true };
+        setToken("user", JSON.stringify(updatedUser));
+        return { user: updatedUser };
+      }
+      return state;
+    });
+  }
 }));

@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { api } from "../lib/axios";
 import { useAuthStore } from "../store/auth";
+import { MapPin } from "lucide-react-native";
 
 export default function LoginScreen() {
   const [companyId, setCompanyId] = useState("");
@@ -50,17 +51,25 @@ export default function LoginScreen() {
 
   return (
     <View className="flex-1 items-center justify-center bg-gray-900 p-6">
-      <View className="w-full max-w-sm rounded-2xl bg-gray-800 p-8 shadow-lg">
-        <Text className="mb-2 text-center text-3xl font-bold text-white">geoSelfie</Text>
-        <Text className="mb-8 text-center text-gray-400">Sign in to your account</Text>
+      <View className="w-full max-w-sm rounded-3xl bg-gray-800 p-8 shadow-2xl border border-gray-700/50">
+        
+        <View className="items-center mb-6">
+          <View className="h-16 w-16 bg-blue-600 rounded-2xl items-center justify-center shadow-lg shadow-blue-500/30 mb-4 transform rotate-3">
+            <MapPin size={32} color="#ffffff" strokeWidth={2.5} />
+          </View>
+          <Text className="text-3xl font-extrabold text-white tracking-tight">geoSelfie</Text>
+          <Text className="text-blue-400 font-medium mt-1 text-sm">Enterprise Biometric Attendance</Text>
+        </View>
+
+        <Text className="mb-6 text-center text-gray-400 text-sm">Sign in to manage your workforce and attendance</Text>
 
         <View className="space-y-4">
           <View>
-            <Text className="mb-1 text-sm font-medium text-gray-300">Company ID</Text>
+            <Text className="mb-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Company ID</Text>
             <TextInput
-              className="w-full rounded-xl bg-gray-700 px-4 py-3 text-white placeholder-gray-500"
+              className="w-full rounded-xl bg-gray-900/50 border border-gray-700 px-4 py-3.5 text-white placeholder-gray-600 focus:border-blue-500"
               placeholder="e.g. acme_corp"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor="#4b5563"
               value={companyId}
               onChangeText={setCompanyId}
               autoCapitalize="none"
@@ -68,11 +77,11 @@ export default function LoginScreen() {
           </View>
 
           <View>
-            <Text className="mb-1 text-sm font-medium text-gray-300">Email Address</Text>
+            <Text className="mb-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Email Address</Text>
             <TextInput
-              className="w-full rounded-xl bg-gray-700 px-4 py-3 text-white placeholder-gray-500"
+              className="w-full rounded-xl bg-gray-900/50 border border-gray-700 px-4 py-3.5 text-white placeholder-gray-600 focus:border-blue-500"
               placeholder="name@example.com"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor="#4b5563"
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -81,11 +90,11 @@ export default function LoginScreen() {
           </View>
 
           <View>
-            <Text className="mb-1 text-sm font-medium text-gray-300">Password</Text>
+            <Text className="mb-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Password</Text>
             <TextInput
-              className="w-full rounded-xl bg-gray-700 px-4 py-3 text-white placeholder-gray-500"
+              className="w-full rounded-xl bg-gray-900/50 border border-gray-700 px-4 py-3.5 text-white placeholder-gray-600 focus:border-blue-500"
               placeholder="••••••••"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor="#4b5563"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -93,12 +102,12 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            className="mt-2 w-full rounded-xl bg-blue-600 py-3 active:bg-blue-700"
+            className="mt-4 w-full rounded-xl bg-blue-600 py-4 active:bg-blue-700 shadow-lg shadow-blue-600/30"
             onPress={handleLogin}
             disabled={loading}
           >
-            <Text className="text-center font-semibold text-white">
-              {loading ? "Signing in..." : "Sign In"}
+            <Text className="text-center font-bold text-white text-base tracking-wide">
+              {loading ? "Authenticating..." : "Sign In securely"}
             </Text>
           </TouchableOpacity>
         </View>

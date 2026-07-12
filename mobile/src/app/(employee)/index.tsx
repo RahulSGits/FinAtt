@@ -24,27 +24,26 @@ export default function EmployeeDashboard() {
   }, []);
 
   const handlePunch = async (type: "IN" | "OUT") => {
-    setLoading(true);
-    try {
-      let location = await Location.getCurrentPositionAsync({});
-      
-      // We will integrate Vision Camera here for Face Recognition later
-      // For now, we simulate success
-      
-      await addRecord({
-        timestamp: new Date().toISOString(),
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        deviceInfo: "MobileApp",
-        faceData: "simulated_base64_data",
-      });
-      
-      Alert.alert("Success", `Punched ${type} successfully!`);
-    } catch (error) {
-      Alert.alert("Error", "Failed to punch. Ensure GPS is enabled.");
-    } finally {
-      setLoading(false);
+    // Check if the user has enrolled their face
+    if (!user?.faceEnrolled) {
+      Alert.alert(
+        "Face Registration Required",
+        "You must register your face before you can mark attendance.",
+        [
+          { text: "Cancel", style: "cancel" },
+          // @ts-ignore
+          { text: "Register Now", onPress: () => router.push({ pathname: "/(employee)/face-scan", params: { mode: "enroll" } }) }
+        ]
+      );
+      return;
     }
+
+    // Proceed to Live Verification
+    // @ts-ignore
+    router.push({
+      pathname: "/(employee)/face-scan" as any,
+      params: { mode: "verify", type }
+    });
   };
 
   const unsyncedCount = queue.filter(q => !q.isSynced).length;

@@ -1,0 +1,38 @@
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from prisma import Prisma
+
+db = Prisma()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    await db.connect()
+    yield
+    # Shutdown
+    await db.disconnect()
+
+app = FastAPI(
+    title="GeoSelfie API",
+    description="Enterprise Biometric Attendance Backend",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "service": "geoselfie-backend"}
+
+from app.api import attendance, auth, websockets
+app.include_router(attendance.router)
+app.include_router(auth.router)
+app.include_router(websockets.router)

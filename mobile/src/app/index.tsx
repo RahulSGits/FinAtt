@@ -14,7 +14,8 @@ export default function Index() {
       } else if (user.role === "admin") {
         router.replace("/admin-dashboard");
       } else {
-        router.replace("/employee-dashboard");
+        // @ts-ignore
+        router.replace("/(employee)");
       }
     }
   }, [isLoading, isAuthenticated, user]);
