@@ -1,133 +1,91 @@
 # GeoSelfie Attendance
 
-A cross-platform (Android + iOS) attendance app built with **Flutter** and a
-**Supabase** backend. Employees mark attendance by taking a selfie inside their
-assigned work site; the app verifies GPS location against an admin-defined
-geofence and scheduled shift hours, tracks how long each person is on-site, and
-auto-marks the day Present / Half-day / Absent. Admins get company-wide monthly
-reports.
+A comprehensive cross-platform attendance system featuring a React Native mobile app for employees, a Next.js web dashboard for HR and Admins, and a powerful FastAPI backend. 
 
-## What's implemented
+Employees mark attendance by taking a real-time selfie inside their assigned work site. The backend verifies GPS location against an admin-defined geofence and scheduled shift hours, uses OpenCV for face verification and liveness detection, tracks how long each person is on-site, and automatically manages daily attendance status (Present / Half-day / Absent).
 
-- **Auth** — email/password sign-up & login (Supabase Auth); role-based routing
-  (employee vs admin).
-- **Face recognition** — one-time on-device face enrollment (ML Kit), and every
-  check-in runs a liveness/quality gate (one face, eyes open, looking straight)
-  plus a 1:1 geometry match against the enrolled face to stop proxy attendance.
-- **Check-in / check-out** — front-camera selfie + high-accuracy GPS; Haversine
-  math confirms the point is inside the site radius **and** within shift hours
-  before a session is written.
-- **Offline queue** — if there's no connection at check-in, the record (and its
-  selfie) is stored locally and auto-synced when connectivity returns.
-- **Presence tracking** — each check-in→check-out pair is a session; daily hours
-  are the sum of in-geofence session time.
-- **Auto status** — a scheduled `close-day` edge function force-closes open
-  sessions and marks each employee Present / Half-day / Absent / On-leave based
-  on `min_presence_percent` of the shift, respecting approved leave.
-- **Reminders** — local daily check-in / check-out notifications aligned to the
-  employee's shift (no Firebase required).
-- **Employee dashboard** — monthly calendar colored by status, present/absent/
-  hours/attendance-% summary cards, per-day check-in/out + selfie log, and
-  **PDF export** of the monthly report.
-- **Admin dashboard** — 5 tabs: company Reports (per-employee days + hours +
-  bar chart + **Excel export**), Employees (assign site/shift/department), Sites
-  (create with GPS + set geofence radius), Shifts (hours + min-presence
-  threshold), Leave approvals.
+## Tech Stack
 
-## Architecture
+- **Web Frontend**: Next.js (React, TailwindCSS, Recharts, React-Leaflet)
+- **Mobile App**: React Native (Expo, Lucide-React-Native)
+- **Backend**: FastAPI (Python, WebSockets)
+- **Database**: PostgreSQL (managed via Prisma ORM)
+- **Face Recognition & AI**: Python (OpenCV, liveness detection, AI models)
+
+## What's Implemented
+
+- **Auth** — JWT-based authentication with role-based routing (Admin, HR, Employee).
+- **Face Recognition & Liveness** — Employees enroll their face on their first login. Subsequent check-ins require a real-time selfie, verified by the FastAPI backend using OpenCV for 1:1 face matching and liveness detection to prevent spoofing.
+- **Geofenced Check-in / Check-out** — Real-time GPS location validation ensures employees are physically present within their assigned site's geofence during scheduled shift hours.
+- **Presence Tracking & Auto Status** — Check-in/out pairings constitute a session. The system calculates total hours present and automatically flags daily attendance based on minimum presence thresholds.
+- **Employee App (Mobile)** — Mobile interface for check-ins/outs, face enrollment, monthly attendance history, and viewing assigned shifts/sites.
+- **Admin & HR Dashboard (Web)** — A rich web interface for administrators to manage sites, shifts, employees, view company-wide reports, and monitor real-time attendance via WebSockets.
+- **Real-Time Updates** — Built-in WebSocket connections sync live attendance data between the mobile app, backend, and admin dashboards.
+
+## Architecture Structure
 
 ```
-app/                     Flutter app
-  lib/
-    models/              Site, Shift, Profile, AttendanceSession/Day
-    services/            auth, location, geofence(math), attendance, report, admin,
-                         storage, face, offline_queue, export, notification
-    screens/auth         login, signup, auth_gate (role router)
-    screens/employee     home, dashboard, day detail, selfie camera, face enrollment
-    screens/admin        dashboard + reports/employees/sites/shifts/leave tabs
-    widgets/             status chip, summary stat card
-supabase/
-  migrations/            0001 schema+RLS, 0002 storage, 0003 cron, 0004 face columns
-  functions/close-day/   daily aggregation + absent-marking (service role)
+├── fastapi-backend/     # Python FastAPI Server
+│   ├── app/
+│   │   ├── api/         # Routes (auth, attendance, websockets)
+│   │   ├── core/        # Config, security, database setup
+│   │   ├── models/      # Prisma schema and generated client
+│   │   ├── services/    # Business logic (OpenCV face matching, geofence math)
+│   │   └── main.py      # Entry point
+│
+├── frontend/            # Next.js Web Dashboard
+│   ├── src/
+│   │   ├── app/         # Next.js App Router pages (admin, hr, employee)
+│   │   ├── components/  # Reusable UI components (charts, maps, layout)
+│   │   └── lib/         # API clients and utility functions
+│
+├── mobile/              # React Native (Expo) App
+│   ├── src/
+│   │   ├── app/         # Expo Router screens (tabs, face-scan, login)
+│   │   ├── components/  # Mobile UI components
+│   │   ├── store/       # Zustand state management
+│   │   └── lib/         # Axios config and utilities
 ```
 
-### Face recognition note
-Matching uses a scale-invariant **facial-landmark-geometry signature** derived
-via ML Kit — fully on-device, offline, no bundled model. It reliably blocks
-obvious proxies; for bank-grade accuracy, swap `FaceService` for a TFLite
-face-embedding model (e.g. MobileFaceNet). Threshold is `FaceService.matchThreshold`.
+## Setup & Installation
 
-## Setup
+### 1. Database Setup
+Ensure you have a PostgreSQL instance running. You will need to configure your database connection string in the backend's `.env` file.
 
-### 1. Backend (Supabase)
-1. Create a project at supabase.com.
-2. Run the migrations (SQL editor or `supabase db push`):
-   `0001_init.sql`, `0002_storage.sql`, `0004_face.sql`.
-3. Deploy the edge function and schedule it:
-   ```bash
-   supabase functions deploy close-day
-   ```
-   Then edit `0003_schedule.sql` with your project ref + service-role key and run
-   it (or configure the cron job from the dashboard).
-4. Make your own account an admin once: in the SQL editor,
-   `update public.profiles set role='admin' where email='you@example.com';`
-
-### 2. App
+### 2. FastAPI Backend
 ```bash
-cd app
-flutter pub get
-flutter run \
-  --dart-define=SUPABASE_URL=https://YOURPROJECT.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=your-anon-key
+cd fastapi-backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Generate Prisma client and push schema
+prisma generate
+prisma db push
+
+# Start the server
+uvicorn app.main:app --reload --port 8000
 ```
 
-Building for release:
+### 3. Next.js Web Dashboard
 ```bash
-flutter build apk        # Android
-flutter build ios        # iOS (needs Xcode + Apple developer signing)
-```
-
-### 3. Web Dashboard (Next.js)
-The enterprise web dashboard provides the administrative interface, HR reporting, employee portal, and the AI assistant.
-
-**Prerequisites:**
-- Node.js v20+ 
-- npm
-
-**Installation & Setup:**
-```bash
-cd web
+cd frontend
 npm install
-```
 
-This will automatically install all required packages, including:
-- `next` (v16.2.10)
-- `react`, `react-dom`
-- `tailwindcss` (v4), `framer-motion`, `clsx`, `lucide-react`
-- `@vladmandic/face-api` (for web-based face verification)
-- `recharts` (for HR charts)
-- `leaflet`, `react-leaflet` (for live geofence maps)
-- `@google/generative-ai` (for the AI Chat Widget)
-
-**Running Locally:**
-```bash
+# Start the development server
 npm run dev
 ```
-Then, open [http://localhost:3000](http://localhost:3000) in your browser. The mock database will load automatically.
+The web dashboard will be available at `http://localhost:3000`.
 
-Building for production:
+### 4. React Native Mobile App
 ```bash
-npm run build
-npm run start
+cd mobile
+npm install
+
+# Start the Expo bundler
+npx expo start
 ```
+You can run the app on an iOS simulator, Android emulator, or on a physical device using the Expo Go app.
 
-## Roadmap / future work
-
-- **Deep face embeddings** — upgrade the geometry matcher to a TFLite
-  face-embedding model (MobileFaceNet) or a cloud face-match API for higher
-  accuracy under varied lighting/angles.
-- **Background presence pinging** while the app is closed (currently presence =
-  check-in→check-out duration). Needs a background-location/WorkManager pipeline
-  and per-platform background-execution setup.
-- **Cloud push (FCM/APNs)** for admin→employee messages; local reminders are
-  already implemented and need no server.
+## License
+MIT License
