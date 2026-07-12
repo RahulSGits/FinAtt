@@ -2,7 +2,6 @@ fastapi
 uvicorn[standard]
 prisma
 opencv-python-headless
-face_recognition
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
