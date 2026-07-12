@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
-import { useAuthStore } from "../store/auth";
-import { useAttendanceStore } from "../attendance/useAttendanceStore";
+import { useAuthStore } from '../../store/auth';
+import { useAttendanceStore } from '../../attendance/useAttendanceStore';
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 
