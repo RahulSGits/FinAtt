@@ -97,6 +97,13 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
   const [mode, setMode] = useState<"office" | "remote">("office");
 
   useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("geoselfie_checked_in") === "true") {
+      setCheckedIn(true);
+      setStep(3);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!navigator.geolocation) {
       const t = setTimeout(() => setGeoError("Geolocation not supported"), 0);
       return () => clearTimeout(t);
@@ -129,6 +136,9 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
     setTimeout(() => {
       setStep(3);
       setCheckedIn(true);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("geoselfie_checked_in", "true");
+      }
     }, 2300);
   }
 
@@ -446,6 +456,9 @@ function resetCheckIn(
 ) {
   setStep(0);
   setCheckedIn(false);
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("geoselfie_checked_in");
+  }
 }
 
 function Face({

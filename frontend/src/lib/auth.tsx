@@ -90,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem(sessionKey);
+    localStorage.removeItem("geoselfie_checked_in");
     setSession(null);
   };
 
