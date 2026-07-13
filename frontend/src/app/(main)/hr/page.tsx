@@ -40,7 +40,7 @@ export default async function HrPage() {
     <HrDashboardClient 
       userProfile={{ id: user.id, name: profile.full_name, role: profile.role }}
       initialEmployees={employees || []}
-      initialAttendance={attendance || []}
+
       initialAnnouncements={announcements || []}
     />
   )

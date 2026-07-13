@@ -41,6 +41,7 @@ export default function AIChatWidget({ userProfile }: { userProfile?: { role: st
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -54,7 +55,7 @@ export default function AIChatWidget({ userProfile }: { userProfile?: { role: st
 
   const handleSend = async (text: string) => {
     if (!text.trim()) return;
-    const newMsg: Message = { id: Date.now().toString(), role: "user", content: text };
+    const newMsg: Message = { id: crypto.randomUUID(), role: "user", content: text };
     setMessages((prev) => [...prev, newMsg]);
     setInput("");
     setIsTyping(true);
@@ -69,13 +70,13 @@ export default function AIChatWidget({ userProfile }: { userProfile?: { role: st
       
       setMessages((prev) => [
         ...prev,
-        { id: (Date.now() + 1).toString(), role: "ai", content: data.response || (data.error ? `Error: ${data.error}` : "Sorry, I couldn't process that request.") },
+        { id: crypto.randomUUID(), role: "ai", content: data.response || (data.error ? `Error: ${data.error}` : "Sorry, I couldn't process that request.") },
       ]);
     } catch (error: unknown) {
       console.error(error);
       setMessages((prev) => [
         ...prev,
-        { id: (Date.now() + 1).toString(), role: "ai", content: "Network error occurred while contacting AI." },
+        { id: crypto.randomUUID(), role: "ai", content: "Network error occurred while contacting AI." },
       ]);
     } finally {
       setIsTyping(false);

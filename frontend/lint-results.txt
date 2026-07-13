@@ -1,0 +1,87 @@
+
+> web@0.1.0 lint
+> eslint
+
+
+/Users/rahulsingh/Downloads/FinAtt/frontend/src/app/(auth)/login/page.tsx
+    5:10  warning  'LogIn' is defined but never used                                @typescript-eslint/no-unused-vars
+  104:16  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/Users/rahulsingh/Downloads/FinAtt/frontend/src/app/(main)/employee/EmployeeDashboardClient.tsx
+  18:3   warning  'initialAttendance' is defined but never used                    @typescript-eslint/no-unused-vars
+  19:3   warning  'initialLeaves' is defined but never used                        @typescript-eslint/no-unused-vars
+  21:4   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  48:87  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  61:53  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+
+/Users/rahulsingh/Downloads/FinAtt/frontend/src/app/(main)/hr/HrDashboardClient.tsx
+    4:87   warning  'FileText' is defined but never used               @typescript-eslint/no-unused-vars
+    4:111  warning  'UserX' is defined but never used                  @typescript-eslint/no-unused-vars
+   19:3    warning  'initialAttendance' is defined but never used      @typescript-eslint/no-unused-vars
+   21:4    error    Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+   23:21   warning  'setEmployees' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   82:39   error    Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+   92:44   error    Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  195:38   error    Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+
+/Users/rahulsingh/Downloads/FinAtt/frontend/src/components/AIChatWidget.tsx
+  44:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/rahulsingh/Downloads/FinAtt/frontend/src/components/AIChatWidget.tsx:44:5
+  42 |
+  43 |   useEffect(() => {
+> 44 |     setMounted(true);
+     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  45 |   }, []);
+  46 |
+  47 |   const prompts = userProfile?.role === "admin" ? ADMIN_PROMPTS : userProfile?.role === "hr" ? HR_PROMPTS : EMP_PROMPTS;  react-hooks/set-state-in-effect
+  57:35  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/rahulsingh/Downloads/FinAtt/frontend/src/components/AIChatWidget.tsx:57:35
+  55 |   const handleSend = async (text: string) => {
+  56 |     if (!text.trim()) return;
+> 57 |     const newMsg: Message = { id: Date.now().toString(), role: "user", content: text };
+     |                                   ^^^^^^^^^^ Cannot call impure function
+  58 |     setMessages((prev) => [...prev, newMsg]);
+  59 |     setInput("");
+  60 |     setIsTyping(true);                                                                                                                                                                                                                                                                                               react-hooks/purity
+
+/Users/rahulsingh/Downloads/FinAtt/frontend/src/components/DashboardShell.tsx
+  12:3   warning  'Check' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  13:3   warning  'CheckCheck' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+  36:7   warning  'notifIconMap' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  46:3   warning  'requiredKind' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+  57:9   warning  'router' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+  60:18  warning  'setUnread' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+  61:18  warning  'setNotifs' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+  61:40  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-explicit-any
+  65:19  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/rahulsingh/Downloads/FinAtt/frontend/src/components/DashboardShell.tsx:65:19
+  63 |   const [mounted, setMounted] = useState(false);
+  64 |   
+> 65 |   useEffect(() => setMounted(true), []);
+     |                   ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  66 |
+  67 |   const roleLabel = userProfile.role === "hr" ? "HR Console" : "Employee Portal";
+  68 |  react-hooks/set-state-in-effect
+
+/Users/rahulsingh/Downloads/FinAtt/frontend/src/utils/supabase/middleware.ts
+  18:48  warning  'options' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 27 problems (12 errors, 15 warnings)
+

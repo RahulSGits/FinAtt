@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { LayoutDashboard, CalendarRange, Megaphone, User, CalendarCheck } from 'lucide-react'
-import DashboardShell, { type NavItem } from '@/components/DashboardShell'
+import DashboardShell, { type NavItem, type UserProfile } from '@/components/DashboardShell'
 
 const nav: NavItem[] = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -15,10 +15,12 @@ const nav: NavItem[] = [
 export default function EmployeeDashboardClient({
   userProfile,
   employeeData,
-  initialAttendance,
-  initialLeaves,
   initialAnnouncements
-}: any) {
+}: {
+  userProfile: UserProfile;
+  employeeData: Record<string, string>;
+  initialAnnouncements: Array<{ id: string, title: string, description: string }>;
+}) {
   const [active, setActive] = useState('overview')
 
   return (
@@ -26,7 +28,6 @@ export default function EmployeeDashboardClient({
       nav={nav}
       active={active}
       onSelect={setActive}
-      requiredKind="employee"
       userProfile={userProfile}
     >
       <div className="space-y-6">
@@ -45,7 +46,7 @@ export default function EmployeeDashboardClient({
           <div className="grid gap-6">
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
-                <div className="mb-2 text-sm text-slate-500 dark:text-slate-400">Today's Status</div>
+                <div className="mb-2 text-sm text-slate-500 dark:text-slate-400">Today&apos;s Status</div>
                 <div className="text-xl font-semibold text-slate-900 dark:text-white">
                   Not Checked In
                 </div>
@@ -58,7 +59,7 @@ export default function EmployeeDashboardClient({
                 <div className="mb-4 text-sm font-medium text-slate-900 dark:text-white">Recent Announcements</div>
                 {initialAnnouncements.length > 0 ? (
                   <ul className="space-y-3">
-                    {initialAnnouncements.map((ann: any) => (
+                    {initialAnnouncements.map((ann) => (
                       <li key={ann.id} className="text-sm">
                         <span className="font-semibold">{ann.title}</span> - <span className="text-slate-500">{ann.description}</span>
                       </li>

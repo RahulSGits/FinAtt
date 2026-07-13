@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
+
 import { useEffect, useState } from "react";
 import {
   Fingerprint,
@@ -9,13 +9,9 @@ import {
   Menu,
   LogOut,
   Search,
-  Check,
-  CheckCheck,
   Sun,
   Moon,
-  User,
-  CalendarCheck,
-  Megaphone,
+
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import AIChatWidget from "./AIChatWidget";
@@ -33,36 +29,31 @@ export interface UserProfile {
   role: string;
 }
 
-const notifIconMap: Record<string, React.ElementType> = {
-  broadcast: Megaphone,
-  profile_updated: User,
-  leave_edited: CalendarCheck,
-};
 
 export default function DashboardShell({
   nav,
   active,
   onSelect,
-  requiredKind,
   userProfile,
   children,
 }: {
   nav: NavItem[];
   active: string;
   onSelect: (k: string) => void;
-  requiredKind: "hr" | "employee";
   userProfile: UserProfile;
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const [sideOpen, setSideOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
-  const [notifs, setNotifs] = useState<any[]>([]);
+  const unread = 0;
+  const notifs: Record<string, string>[] = [];
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
   const roleLabel = userProfile.role === "hr" ? "HR Console" : "Employee Portal";
 

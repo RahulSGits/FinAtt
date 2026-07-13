@@ -60,8 +60,7 @@ export default async function EmployeePage() {
     <EmployeeDashboardClient 
       userProfile={{ id: user.id, name: profile.full_name, role: profile.role }}
       employeeData={employee}
-      initialAttendance={attendance}
-      initialLeaves={leaves}
+
       initialAnnouncements={announcements || []}
     />
   )

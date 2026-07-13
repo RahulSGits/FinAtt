@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { LayoutDashboard, Users, CalendarRange, Megaphone, User, Building2, UserPlus, FileText, CheckCircle2, UserX, X } from 'lucide-react'
-import DashboardShell, { type NavItem } from '@/components/DashboardShell'
+import { LayoutDashboard, Users, CalendarRange, Megaphone, User, Building2, UserPlus, CheckCircle2, X } from 'lucide-react'
+import DashboardShell, { type NavItem, type UserProfile } from '@/components/DashboardShell'
 import { createEmployee } from '@/app/(auth)/actions'
 
 const nav: NavItem[] = [
@@ -16,11 +16,14 @@ const nav: NavItem[] = [
 export default function HrDashboardClient({
   userProfile,
   initialEmployees,
-  initialAttendance,
   initialAnnouncements
-}: any) {
+}: {
+  userProfile: UserProfile;
+  initialEmployees: Array<Record<string, string>>;
+  initialAnnouncements: Array<Record<string, string>>;
+}) {
   const [active, setActive] = useState('overview')
-  const [employees, setEmployees] = useState(initialEmployees)
+  const [employees] = useState(initialEmployees)
   const [isAddingEmployee, setIsAddingEmployee] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [addMessage, setAddMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
@@ -53,7 +56,6 @@ export default function HrDashboardClient({
       nav={nav}
       active={active}
       onSelect={setActive}
-      requiredKind="hr"
       userProfile={userProfile}
     >
       <div className="space-y-6">
@@ -79,7 +81,7 @@ export default function HrDashboardClient({
                 <CheckCircle2 size={20} />
               </div>
               <div className="text-3xl font-bold text-slate-900 dark:text-white">
-                {employees.filter((e: any) => e.status === 'active').length}
+                {employees.filter((e) => e.status === 'active').length}
               </div>
               <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Active Employees</div>
             </div>
@@ -89,7 +91,7 @@ export default function HrDashboardClient({
                 <Building2 size={20} />
               </div>
               <div className="text-3xl font-bold text-slate-900 dark:text-white">
-                {new Set(employees.map((e: any) => e.department)).size}
+                {new Set(employees.map((e) => e.department)).size}
               </div>
               <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Departments</div>
             </div>
@@ -192,7 +194,7 @@ export default function HrDashboardClient({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-white/10">
-                  {employees.map((e: any) => (
+                  {employees.map((e) => (
                     <tr key={e.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{e.full_name}</td>
                       <td className="px-6 py-4">{e.employee_id}</td>
