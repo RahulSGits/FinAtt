@@ -45,8 +45,8 @@ export default function FaceScanScreen() {
       // Here we would typically send photo.path (as multipart/form-data or Base64)
       // to our FastAPI backend for OpenCV processing.
       
-      // Simulating network delay for backend processing
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Simulated network delay for backend processing (made quick)
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       if (mode === 'enroll') {
         await enrollFace();

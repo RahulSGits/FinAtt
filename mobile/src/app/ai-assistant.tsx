@@ -35,7 +35,7 @@ export default function AIAssistantScreen() {
       };
       setMessages(prev => [...prev, aiMsg]);
       setLoading(false);
-    }, 1500);
+    }, 200);
   };
 
   return (
