@@ -1885,12 +1885,12 @@ function GeofenceView() {
     if (!address.trim()) return;
     setSearching(true);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=AIzaSyA3CzCZlkh_2xIEBnZTm2xDPaoN5N3pq_k`);
       const data = await res.json();
-      if (data && data.length > 0) {
-        setLat(data[0].lat);
-        setLng(data[0].lon);
-        setLocationName(data[0].display_name || address);
+      if (data.status === "OK" && data.results && data.results.length > 0) {
+        setLat(data.results[0].geometry.location.lat.toString());
+        setLng(data.results[0].geometry.location.lng.toString());
+        setLocationName(data.results[0].formatted_address || address);
         setAddress("");
       } else {
         alert("Location not found");
