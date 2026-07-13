@@ -143,6 +143,7 @@ const statusMeta: Record<Status, { label: string; color: string }> = {
   leave: { label: "On leave", color: "#60a5fa" },
   off: { label: "Week off", color: "#64748b" },
   pending: { label: "Pending", color: "#94a3b8" },
+  late: { label: "Late", color: "#fbbf24" },
 };
 
 export function StatusBadge({ status }: { status: Status }) {

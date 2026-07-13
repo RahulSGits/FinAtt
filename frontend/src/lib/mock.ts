@@ -306,6 +306,7 @@ export const statusColor: Record<Status | "none", string> = {
   leave: "#60a5fa",
   off: "#475569",
   pending: "#94a3b8",
+  late: "#fbbf24",
   none: "transparent",
 };
 
