@@ -419,18 +419,26 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
             </div>
           </div>
           <div className="flex gap-2 sm:gap-4 overflow-x-auto hide-scrollbar border-l border-slate-200 dark:border-white/10 pl-4 py-1 flex-1">
-            {dow.map((d, i) => (
-              <div key={i} className="flex flex-col items-center gap-2 min-w-[32px]">
-                <span className="text-center text-[10px] leading-tight text-slate-500 dark:text-slate-400">
-                  {d.split(" ")[0]}<br/>
-                  <span className="text-slate-900 dark:text-white/30">{d.split(" ")[1]}</span>
-                </span>
-                <div
-                  className="h-4 w-4 rounded-[5px] flex-shrink-0"
-                  style={{ background: statusColor[me.week[i]] }}
-                />
-              </div>
-            ))}
+            {dow.map((d, i) => {
+              const todayDay = new Date().getDay();
+              const todayIndex = todayDay === 0 ? 6 : todayDay - 1;
+              const bgColor = i === todayIndex 
+                ? (checkedIn ? statusColor["present"] : statusColor["absent"])
+                : statusColor[me.week[i]];
+              
+              return (
+                <div key={i} className="flex flex-col items-center gap-2 min-w-[32px]">
+                  <span className="text-center text-[10px] leading-tight text-slate-500 dark:text-slate-400">
+                    {d.split(" ")[0]}<br/>
+                    <span className="text-slate-900 dark:text-white/30">{d.split(" ")[1]}</span>
+                  </span>
+                  <div
+                    className="h-4 w-4 rounded-[5px] flex-shrink-0"
+                    style={{ background: bgColor }}
+                  />
+                </div>
+              );
+            })}
           </div>
           <div className="ml-auto w-32 flex-shrink-0 border-l border-slate-200 dark:border-white/10 pl-4">
             <div className="mb-1.5 flex justify-between text-xs">

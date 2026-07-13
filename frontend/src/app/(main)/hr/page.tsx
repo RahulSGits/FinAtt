@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -102,6 +102,35 @@ const nav: NavItem[] = [
 export default function HrPage() {
   const [active, setActive] = useState("overview");
   const [people, setPeople] = useState<Employee[]>(seedEmployees);
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const isAshaCheckedIn = typeof window !== "undefined" && localStorage.getItem("geoselfie_checked_in") === "true";
+      setPeople(prev => prev.map(p => {
+        if (p.id === "e1") { // Asha Nair
+          const newTodayStatus = isAshaCheckedIn ? "present" : "absent";
+          const newWeek = [...p.week];
+          const todayDay = new Date().getDay();
+          const todayIndex = todayDay === 0 ? 6 : todayDay - 1;
+          newWeek[todayIndex] = newTodayStatus;
+          
+          return {
+            ...p,
+            today: newTodayStatus,
+            checkIn: isAshaCheckedIn ? "09:04" : undefined,
+            week: newWeek,
+          };
+        }
+        return p;
+      }));
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    handleStorageChange(); // initial check
+
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
   return (
     <DashboardShell
       nav={nav}
@@ -109,7 +138,7 @@ export default function HrPage() {
       onSelect={setActive}
       requiredKind="hr"
     >
-      {active === "overview" && <Overview />}
+      {active === "overview" && <Overview people={people} />}
       {active === "employees" && (
         <EmployeesView people={people} setPeople={setPeople} />
       )}
@@ -147,24 +176,31 @@ function Header({
 
 // ── Overview ─────────────────────────────────────────────────────────────
 
-function Overview() {
+function Overview({ people }: { people: Employee[] }) {
   const payrollTotal = seedPayroll.reduce((s, p) => s + p.net, 0);
   const todayDate = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
   const { items: fraudItems, clear: clearFraud } = useFraud();
+  
+  const dynHeadcount = people.length;
+  const dynPresent = people.filter(e => e.today === "present" || e.today === "half").length;
+  const dynAbsent = people.filter(e => e.today === "absent" || e.today === "pending").length;
+  const dynLate = people.filter(e => e.today === "late").length;
+  const dynOnLeave = people.filter(e => e.today === "leave").length;
+
   return (
     <div>
       <Header title="Workforce Overview" sub={`geoSelfie · ${todayDate}`} />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Present today"
-          value={kpis.present}
+          value={dynPresent}
           icon={<UserCheck size={18} />}
           tone="#34d399"
-          sub={`of ${kpis.headcount}`}
+          sub={`of ${dynHeadcount}`}
         />
         <StatCard
           label="Absent"
-          value={kpis.absent}
+          value={dynAbsent}
           icon={<UserX size={18} />}
           tone="#f87171"
           sub="today"
@@ -172,7 +208,7 @@ function Overview() {
         />
         <StatCard
           label="Late"
-          value={kpis.late}
+          value={dynLate}
           icon={<Timer size={18} />}
           tone="#fbbf24"
           sub="grace exceeded"
@@ -180,7 +216,7 @@ function Overview() {
         />
         <StatCard
           label="On leave"
-          value={kpis.onLeave}
+          value={dynOnLeave}
           icon={<Plane size={18} />}
           tone="#60a5fa"
           sub="approved"
