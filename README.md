@@ -16,11 +16,11 @@ Employees mark attendance by taking a real-time selfie inside their assigned wor
 
 - **Auth** — JWT-based authentication with role-based routing (Admin, HR, Employee).
 - **Face Recognition & Liveness** — Employees enroll their face on their first login. Subsequent check-ins require a real-time selfie, verified by the FastAPI backend using OpenCV for 1:1 face matching and liveness detection to prevent spoofing.
-- **Geofenced Check-in / Check-out** — Real-time GPS location validation ensures employees are physically present within their assigned site's geofence during scheduled shift hours.
+- **Geofenced Check-in / Check-out** — Real-time GPS location validation ensures employees are physically present within their assigned site's geofence during scheduled shift hours.and set the real timing of check in and check out with proper date .
 - **Presence Tracking & Auto Status** — Check-in/out pairings constitute a session. The system calculates total hours present and automatically flags daily attendance based on minimum presence thresholds.
-- **Employee App (Mobile)** — Mobile interface for check-ins/outs, face enrollment, monthly attendance history, and viewing assigned shifts/sites.
+- **Employee App (Mobile)** — a rich web interface for employees for check-ins/outs, face enrollment, monthly attendance history, and viewing assigned shifts/sites.
 - **Admin & HR Dashboard (Web)** — A rich web interface for administrators to manage sites, shifts, employees, view company-wide reports, and monitor real-time attendance via WebSockets.
-- **Real-Time Updates** — Built-in WebSocket connections sync live attendance data between the mobile app, backend, and admin dashboards.
+- **Real-Time Updates** — Built-in WebSocket connections sync live attendance data between the web-app, backend, and admin dashboards.
 
 ## Architecture Structure
 
@@ -50,7 +50,7 @@ Employees mark attendance by taking a real-time selfie inside their assigned wor
 ## Setup & Installation
 
 ### 1. Database Setup
-Ensure you have a PostgreSQL instance running. You will need to configure your database connection string in the backend's `.env` file.
+Ensure you have a supabase instance running. You will need to configure your database connection string in the backend's `.env` file.
 
 ### 2. FastAPI Backend
 ```bash
@@ -76,11 +76,6 @@ npm install
 npm run dev
 ```
 The web dashboard will be available at `http://localhost:3000`.
-
-### 4. React Native Mobile App
-```bash
-cd mobile
-npm install
 
 # Start the Expo bundler
 npx expo start
