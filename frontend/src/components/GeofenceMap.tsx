@@ -1,18 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { MapContainer, TileLayer, Circle, Marker, useMapEvents, useMap, LayersControl } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-
-// Fix Leaflet's default icon paths in Next.js
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
+import { useMemo, useCallback } from "react";
+import { GoogleMap, useJsApiLoader, Circle, Marker } from "@react-google-maps/api";
 
 interface GeofenceMapProps {
   lat: number;
@@ -23,75 +12,68 @@ interface GeofenceMapProps {
   userLocation?: { lat: number; lng: number };
 }
 
-function MapEvents({ onChange, readOnly }: { onChange?: (lat: number, lng: number) => void; readOnly?: boolean }) {
-  useMapEvents({
-    click(e) {
-      if (!readOnly && onChange) {
-        onChange(e.latlng.lat, e.latlng.lng);
-      }
-    },
-  });
-  return null;
-}
-
-function MapController({ center }: { center: [number, number] }) {
-  const map = useMap();
-  useEffect(() => {
-    map.flyTo(center, map.getZoom(), { animate: true, duration: 1.5 });
-  }, [center, map]);
-  return null;
-}
+const containerStyle = {
+  width: "100%",
+  height: "100%",
+};
 
 export default function GeofenceMap({ lat, lng, radius, onChange, readOnly, userLocation }: GeofenceMapProps) {
-  const position: [number, number] = [lat, lng];
+  const { isLoaded } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: "AIzaSyA3CzCZlkh_2xIEBnZTm2xDPaoN5N3pq_k",
+  });
+
+  const center = useMemo(() => ({ lat, lng }), [lat, lng]);
+
+  const onMapClick = useCallback((e: google.maps.MapMouseEvent) => {
+    if (!readOnly && onChange && e.latLng) {
+      onChange(e.latLng.lat(), e.latLng.lng());
+    }
+  }, [readOnly, onChange]);
+
+  if (!isLoaded) return <div className="grid h-full place-items-center text-sm text-slate-500">Loading Google Maps...</div>;
 
   return (
-    <MapContainer
-      center={position}
+    <GoogleMap
+      mapContainerStyle={containerStyle}
+      center={center}
       zoom={16}
-      style={{ height: "100%", width: "100%" }}
-      attributionControl={false}
+      onClick={onMapClick}
+      options={{
+        disableDefaultUI: false,
+        zoomControl: true,
+        streetViewControl: false,
+        mapTypeControl: true,
+      }}
     >
-      <LayersControl position="topright">
-        <LayersControl.BaseLayer checked name="Normal View">
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        </LayersControl.BaseLayer>
-        <LayersControl.BaseLayer name="Satellite View">
-          <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
-        </LayersControl.BaseLayer>
-      </LayersControl>
-
-      <MapEvents onChange={onChange} readOnly={readOnly} />
-      <MapController center={position} />
-      
-      {/* Visual Marker */}
-      <Marker position={position} />
+      {/* Geofence Center Marker */}
+      <Marker position={center} />
       
       {/* Radius Visualizer */}
       <Circle
-        center={position}
+        center={center}
         radius={radius}
-        pathOptions={{
-          color: "#6366f1",
+        options={{
           fillColor: "#6366f1",
           fillOpacity: 0.35,
-          weight: 2,
+          strokeColor: "#6366f1",
+          strokeWeight: 2,
         }}
       />
 
       {/* User's current location (e.g. Employee view) */}
       {userLocation && (
         <Circle
-          center={[userLocation.lat, userLocation.lng]}
+          center={userLocation}
           radius={5}
-          pathOptions={{
-            color: "#34d399",
+          options={{
             fillColor: "#34d399",
             fillOpacity: 1,
-            weight: 2,
+            strokeColor: "#34d399",
+            strokeWeight: 2,
           }}
         />
       )}
-    </MapContainer>
+    </GoogleMap>
   );
 }

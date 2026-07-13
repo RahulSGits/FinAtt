@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @custom-variant dark (&:is(.dark *));
-@import "leaflet/dist/leaflet.css";
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
