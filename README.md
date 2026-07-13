@@ -1,13 +1,12 @@
 # GeoSelfie Attendance
 
-A comprehensive cross-platform attendance system featuring a React Native mobile app for employees, a Next.js web dashboard for HR and Admins, and a powerful FastAPI backend. 
+A comprehensive cross-platform attendance system featuring a Next.js web application for Employees, HR, and Admins, and a powerful FastAPI backend. 
 
 Employees mark attendance by taking a real-time selfie inside their assigned work site. The backend verifies GPS location against an admin-defined geofence and scheduled shift hours, uses OpenCV for face verification and liveness detection, tracks how long each person is on-site, and automatically manages daily attendance status (Present / Half-day / Absent).
 
 ## Tech Stack
 
 - **Web Frontend**: Next.js (React, TailwindCSS, Recharts, React-Leaflet)
-- **Mobile App**: React Native (Expo, Lucide-React-Native)
 - **Backend**: FastAPI (Python, WebSockets)
 - **Database**: PostgreSQL (managed via Prisma ORM)
 - **Face Recognition & AI**: Python (OpenCV, liveness detection, AI models)
@@ -18,7 +17,7 @@ Employees mark attendance by taking a real-time selfie inside their assigned wor
 - **Face Recognition & Liveness** — Employees enroll their face on their first login. Subsequent check-ins require a real-time selfie, verified by the FastAPI backend using OpenCV for 1:1 face matching and liveness detection to prevent spoofing.
 - **Geofenced Check-in / Check-out** — Real-time GPS location validation ensures employees are physically present within their assigned site's geofence during scheduled shift hours.and set the real timing of check in and check out with proper date .
 - **Presence Tracking & Auto Status** — Check-in/out pairings constitute a session. The system calculates total hours present and automatically flags daily attendance based on minimum presence thresholds.
-- **Employee App (Mobile)** — a rich web interface for employees for check-ins/outs, face enrollment, monthly attendance history, and viewing assigned shifts/sites.
+- **Employee App (Web)** — A rich web interface for employees for check-ins/outs, face enrollment, monthly attendance history, and viewing assigned shifts/sites.
 - **Admin & HR Dashboard (Web)** — A rich web interface for administrators to manage sites, shifts, employees, view company-wide reports, and monitor real-time attendance via WebSockets.
 - **Real-Time Updates** — Built-in WebSocket connections sync live attendance data between the web-app, backend, and admin dashboards.
 
@@ -38,13 +37,6 @@ Employees mark attendance by taking a real-time selfie inside their assigned wor
 │   │   ├── app/         # Next.js App Router pages (admin, hr, employee)
 │   │   ├── components/  # Reusable UI components (charts, maps, layout)
 │   │   └── lib/         # API clients and utility functions
-│
-├── mobile/              # React Native (Expo) App
-│   ├── src/
-│   │   ├── app/         # Expo Router screens (tabs, face-scan, login)
-│   │   ├── components/  # Mobile UI components
-│   │   ├── store/       # Zustand state management
-│   │   └── lib/         # Axios config and utilities
 ```
 
 ## Setup & Installation
@@ -76,11 +68,6 @@ npm install
 npm run dev
 ```
 The web dashboard will be available at `http://localhost:3000`.
-
-# Start the Expo bundler
-npx expo start
-```
-You can run the app on an iOS simulator, Android emulator, or on a physical device using the Expo Go app.
 
 ## License
 MIT License
