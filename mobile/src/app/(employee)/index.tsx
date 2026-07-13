@@ -10,6 +10,7 @@ export default function EmployeeDashboard() {
   const router = useRouter();
   const { queue } = useAttendanceStore();
   const [locationStatus, setLocationStatus] = useState<string>("Checking location...");
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     (async () => {
