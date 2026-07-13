@@ -2,7 +2,8 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import type { Status } from "@/lib/mock";
+
+type Status = "present" | "absent" | "half" | "late" | "leave" | "pending" | "off";
 
 export function AnimatedNumber({
   value,

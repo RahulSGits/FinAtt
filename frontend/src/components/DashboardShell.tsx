@@ -13,18 +13,13 @@ import {
   CheckCheck,
   Sun,
   Moon,
-  CreditCard,
-  FileText,
   User,
   CalendarCheck,
   Megaphone,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useAuth } from "@/lib/auth";
-import { useNotifications } from "@/lib/notifications";
-import { company } from "@/lib/mock";
-import { useTenants } from "@/lib/tenants";
 import AIChatWidget from "./AIChatWidget";
+import { logout } from "@/app/(auth)/actions";
 
 export interface NavItem {
   key: string;
@@ -32,10 +27,13 @@ export interface NavItem {
   icon: React.ComponentType<{ size?: number }>;
 }
 
+export interface UserProfile {
+  id: string;
+  name: string;
+  role: string;
+}
+
 const notifIconMap: Record<string, React.ElementType> = {
-  plan_updated: CreditCard,
-  payroll_edited: FileText,
-  face_reset: Fingerprint,
   broadcast: Megaphone,
   profile_updated: User,
   leave_edited: CalendarCheck,
@@ -46,57 +44,27 @@ export default function DashboardShell({
   active,
   onSelect,
   requiredKind,
+  userProfile,
   children,
 }: {
   nav: NavItem[];
   active: string;
   onSelect: (k: string) => void;
-  requiredKind: "admin" | "hr" | "employee";
+  requiredKind: "hr" | "employee";
+  userProfile: UserProfile;
   children: React.ReactNode;
 }) {
-  const { session, logout, ready } = useAuth();
   const router = useRouter();
   const [sideOpen, setSideOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const { items: notifs, unread, markRead, markAllRead } = useNotifications(
-    session?.role,
-  );
+  const [unread, setUnread] = useState(0);
+  const [notifs, setNotifs] = useState<any[]>([]);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+  
   useEffect(() => setMounted(true), []);
-  const { tenants } = useTenants();
-  const tenant = tenants.find((t) => t.id === "t1") || tenants[0];
 
-  // ── Role enforcement ───────────────────────────────────────────────
-  useEffect(() => {
-    if (!ready) return;
-    if (!session) {
-      router.replace("/login");
-      return;
-    }
-    // Admin has access everywhere; otherwise enforce role match
-    if (session.role !== "admin") {
-      if (session.role !== requiredKind) {
-        router.replace("/login");
-      }
-    }
-  }, [ready, session, router, requiredKind]);
-
-  if (!ready || !session) {
-    return (
-      <div className="grid min-h-screen place-items-center muted">
-        Loading…
-      </div>
-    );
-  }
-
-  const roleLabel =
-    session.role === "admin"
-      ? "Developer Console"
-      : session.role === "hr"
-        ? "HR Console"
-        : "Employee Portal";
+  const roleLabel = userProfile.role === "hr" ? "HR Console" : "Employee Portal";
 
   return (
     <div className="flex min-h-screen">
@@ -126,9 +94,8 @@ export default function DashboardShell({
                   setSideOpen(false);
                 }}
                 roleLabel={roleLabel}
-                onLogout={() => {
-                  logout();
-                  router.replace("/login");
+                onLogout={async () => {
+                  await logout();
                 }}
               />
             </motion.aside>
@@ -143,9 +110,8 @@ export default function DashboardShell({
           active={active}
           onSelect={onSelect}
           roleLabel={roleLabel}
-          onLogout={() => {
-            logout();
-            router.replace("/login");
+          onLogout={async () => {
+            await logout();
           }}
         />
       </aside>
@@ -169,19 +135,15 @@ export default function DashboardShell({
           </button>
 
           <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 dark:bg-white/5 text-xs font-bold">
-              {session.role === "admin" ? "GEO" : (tenant ? tenant.name.substring(0, 3).toUpperCase() : "CMP")}
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 dark:bg-white/5 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+              FA
             </span>
             <div className="hidden sm:block">
               <div className="text-sm font-medium leading-tight">
-                {session.role === "admin" ? "geoSelfie Inc." : (session.companyName || tenant?.name || company.name)}
+                FinAtt
               </div>
               <div className="muted text-xs">
-                {session.role === "admin"
-                  ? "Platform Administration"
-                  : session.role === "employee"
-                    ? "Employee Portal"
-                    : `Pro · ${tenant?.activeUsers || company.employees} employees`}
+                {userProfile.role === "employee" ? "Employee Portal" : "HR Dashboard"}
               </div>
             </div>
           </div>
@@ -192,7 +154,7 @@ export default function DashboardShell({
             <div className="hidden w-full items-center gap-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 lg:flex">
               <Search size={15} className="text-slate-500 dark:text-slate-400" />
               <input
-                placeholder="Search employees, sites, reports…"
+                placeholder="Search..."
                 className="w-full bg-transparent text-sm outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
             </div>
@@ -204,6 +166,7 @@ export default function DashboardShell({
               {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
             </button>
           )}
+
           {/* Notification bell */}
           <div className="relative">
             <button
@@ -228,14 +191,6 @@ export default function DashboardShell({
                 >
                   <div className="mb-3 flex items-center justify-between px-1">
                     <span className="text-base font-semibold tracking-tight">Notifications</span>
-                    {unread > 0 && (
-                      <button
-                        onClick={() => markAllRead()}
-                        className="flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
-                      >
-                        <CheckCheck size={14} /> Mark all read
-                      </button>
-                    )}
                   </div>
                   {notifs.length === 0 ? (
                     <div className="muted py-8 text-center text-sm flex flex-col items-center gap-2">
@@ -244,52 +199,9 @@ export default function DashboardShell({
                     </div>
                   ) : (
                     <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
-                      {notifs.slice(0, 10).map((n) => {
-                        const IconCmp = notifIconMap[n.type] || Bell;
-                        return (
-                          <button
-                            key={n.id}
-                            onClick={() => { markRead(n.id); if (window.innerWidth < 768) setNotifOpen(false); }}
-                            className={`flex w-full items-start gap-3 rounded-xl p-3 text-left transition-all hover:scale-[1.02] ${
-                              n.read ? "opacity-60 hover:bg-slate-50 dark:hover:bg-white/5" : "bg-white dark:bg-white/5 shadow-sm border border-slate-100 dark:border-white/5 hover:border-indigo-100 dark:hover:border-indigo-500/20"
-                            }`}
-                          >
-                            {!n.read && (
-                              <span className="mt-2.5 h-2 w-2 shrink-0 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
-                            )}
-                            {n.read && (
-                              <Check
-                                size={14}
-                                className="mt-2 shrink-0 text-slate-400"
-                              />
-                            )}
-                            <div className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full ${n.read ? "bg-slate-100 dark:bg-white/10 text-slate-500" : "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"}`}>
-                              <IconCmp size={15} />
-                            </div>
-                            <div className="min-w-0 flex-1 space-y-1">
-                              <div className="font-semibold text-sm text-slate-900 dark:text-slate-100 leading-tight">
-                                {n.title}
-                              </div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400 leading-snug line-clamp-2">
-                                {n.body}
-                              </div>
-                              <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                                {n.at}
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
+                      {/* Notifications would go here */}
                     </div>
                   )}
-                  <div className="pt-3 mt-2 border-t border-slate-100 dark:border-white/10">
-                    <button
-                      onClick={() => { setNotifOpen(false); onSelect("notifications"); }}
-                      className="w-full rounded-lg py-2 text-center text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
-                    >
-                      View all notifications
-                    </button>
-                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -303,7 +215,7 @@ export default function DashboardShell({
                 background: "linear-gradient(135deg,#6366f1,#a855f7)",
               }}
             >
-              {session.name
+              {userProfile.name
                 .split(" ")
                 .map((w) => w[0])
                 .slice(0, 2)
@@ -311,13 +223,12 @@ export default function DashboardShell({
             </span>
             <div className="hidden sm:block">
               <div className="text-sm font-medium leading-tight">
-                {session.name}
+                {userProfile.name}
               </div>
-              <div className="muted text-xs capitalize">{session.role}</div>
+              <div className="muted text-xs capitalize">{userProfile.role}</div>
             </div>
           </div>
         </header>
-
 
         <main className="flex-1 p-4 sm:p-5">{children}</main>
       </div>
@@ -329,8 +240,6 @@ export default function DashboardShell({
           onClick={() => setNotifOpen(false)}
         />
       )}
-
-
     </div>
   );
 }
@@ -355,7 +264,7 @@ function SidebarContent({
           <Fingerprint size={20} />
         </span>
         <div>
-          <div className="text-sm font-semibold leading-tight">GeoSelfie</div>
+          <div className="text-sm font-semibold leading-tight">FinAtt</div>
           <div className="muted text-xs">{roleLabel}</div>
         </div>
       </div>

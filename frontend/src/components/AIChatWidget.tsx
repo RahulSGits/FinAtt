@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { Sparkles, X, Send } from "lucide-react";
-import { useAuth } from "@/lib/auth";
 
 type Message = {
   id: string;
@@ -31,8 +30,7 @@ const ADMIN_PROMPTS = [
   "What is the system status?",
 ];
 
-export default function AIChatWidget() {
-  const { session } = useAuth();
+export default function AIChatWidget({ userProfile }: { userProfile?: { role: string } }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -43,11 +41,10 @@ export default function AIChatWidget() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
-  const prompts = session?.role === "admin" ? ADMIN_PROMPTS : session?.role === "hr" ? HR_PROMPTS : EMP_PROMPTS;
+  const prompts = userProfile?.role === "admin" ? ADMIN_PROMPTS : userProfile?.role === "hr" ? HR_PROMPTS : EMP_PROMPTS;
 
   useEffect(() => {
     if (endRef.current) {
@@ -57,7 +54,6 @@ export default function AIChatWidget() {
 
   const handleSend = async (text: string) => {
     if (!text.trim()) return;
-    // eslint-disable-next-line react-hooks/purity
     const newMsg: Message = { id: Date.now().toString(), role: "user", content: text };
     setMessages((prev) => [...prev, newMsg]);
     setInput("");
@@ -67,7 +63,7 @@ export default function AIChatWidget() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, role: session?.role || "employee" }),
+        body: JSON.stringify({ message: text, role: userProfile?.role || "employee" }),
       });
       const data = await res.json();
       
@@ -86,11 +82,10 @@ export default function AIChatWidget() {
     }
   };
 
-  if (!session) return null; // Hide for unauthenticated users
+  if (!userProfile) return null; // Hide for unauthenticated users
 
   return (
     <>
-      {/* Header Action Button */}
       <button
         className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/30 transition-colors"
         onClick={() => setIsOpen(true)}
@@ -99,7 +94,6 @@ export default function AIChatWidget() {
         <Sparkles size={17} />
       </button>
 
-      {/* Chat Window via Portal */}
       {mounted && createPortal(
         <AnimatePresence>
           {isOpen && (
@@ -114,7 +108,6 @@ export default function AIChatWidget() {
             dragMomentum={false}
             className="fixed bottom-24 right-6 z-50 flex h-[500px] w-[350px] flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-900 shadow-2xl sm:w-[400px]"
           >
-            {/* Header */}
             <div 
               className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-800/50 p-4 cursor-grab active:cursor-grabbing select-none"
               onPointerDown={(e) => dragControls.start(e)}
@@ -124,7 +117,7 @@ export default function AIChatWidget() {
                   <Sparkles size={16} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">geoSelfie AI</h3>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">FinAtt AI</h3>
                   <p className="text-[10px] text-emerald-400">Online</p>
                 </div>
               </div>
@@ -136,7 +129,6 @@ export default function AIChatWidget() {
               </button>
             </div>
 
-            {/* Message List */}
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
               {messages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center text-center">
@@ -205,7 +197,6 @@ export default function AIChatWidget() {
               )}
             </div>
 
-            {/* Input Area */}
             <div className="border-t border-slate-200 dark:border-white/10 bg-slate-800/50 p-3">
               <form
                 onSubmit={(e) => {
