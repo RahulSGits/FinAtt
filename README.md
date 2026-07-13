@@ -55,5 +55,19 @@ npm run dev
 ```
 The web dashboard will be available at `http://localhost:3000` (or `http://0.0.0.0:3000` for network access).
 
+## Demo Credentials
+
+You can test the application by registering the following demo accounts on the `/register` page:
+
+**HR Demo Account:**
+- **Email:** hr@demo.com
+- **Password:** demo1234
+- **Role:** Select `HR`
+
+**Employee Demo Account:**
+- **Email:** employee@demo.com
+- **Password:** demo1234
+- **Role:** Select `Employee`
+
 ## License
 MIT License
