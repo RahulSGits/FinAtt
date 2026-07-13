@@ -4,7 +4,7 @@
 
 export type Role = "admin" | "hr" | "employee";
 
-export type Status = "present" | "absent" | "half" | "leave" | "off" | "pending";
+export type Status = "present" | "absent" | "half" | "leave" | "off" | "pending" | "late";
 
 export function getWeekDates() {
   const dates = [];

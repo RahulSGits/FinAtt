@@ -98,7 +98,9 @@ function Home({ onNavigate }: { onNavigate: (k: string) => void }) {
 
   useEffect(() => {
     if (typeof window !== "undefined" && localStorage.getItem("geoselfie_checked_in") === "true") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCheckedIn(true);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep(3);
     }
   }, []);

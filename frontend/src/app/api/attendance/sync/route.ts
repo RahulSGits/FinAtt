@@ -13,9 +13,9 @@ export async function POST(req: NextRequest) {
       message: "Attendance synced successfully",
       record: data
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: error.message || "Failed to sync attendance" },
+      { error: error instanceof Error ? error.message : "Failed to sync attendance" },
       { status: 500 }
     );
   }

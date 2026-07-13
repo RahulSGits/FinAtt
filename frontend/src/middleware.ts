@@ -35,7 +35,7 @@ export async function middleware(request: NextRequest) {
           headers: requestHeaders,
         },
       });
-    } catch (_error) {
+    } catch {
       return NextResponse.json(
         { error: 'Unauthorized: Invalid or expired token' },
         { status: 401 }
