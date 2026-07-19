@@ -50,7 +50,7 @@ export default function Landing() {
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-300">
             <Fingerprint size={20} />
           </span>
-          <span className="text-lg font-semibold">GeoSelfie</span>
+          <span className="text-lg font-semibold">FinAtt</span>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/login" className="muted text-sm hover:text-slate-900 dark:hover:text-white">
@@ -202,7 +202,7 @@ export default function Landing() {
       </section>
 
       <footer className="muted border-t border-slate-200/60 dark:border-white/5 py-8 text-center text-sm">
-        <span className="opacity-70">GeoSelfie Enterprise</span> — Attendance &amp; Workforce Management · Demo build
+        <span className="opacity-70">FinAtt Enterprise</span> — Attendance &amp; Workforce Management · Demo build
       </footer>
     </main>
   );

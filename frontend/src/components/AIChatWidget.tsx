@@ -90,7 +90,7 @@ export default function AIChatWidget({ userProfile }: { userProfile?: { role: st
       <button
         className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/30 transition-colors"
         onClick={() => setIsOpen(true)}
-        title="Ask geoSelfie AI"
+        title="Ask FinAtt AI"
       >
         <Sparkles size={17} />
       </button>

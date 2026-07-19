@@ -141,7 +141,7 @@ export default function DashboardShell({
 
           {/* Center Area: AI & Search */}
           <div className="mx-auto flex items-center justify-end gap-3 lg:w-full lg:max-w-sm lg:justify-center">
-            <AIChatWidget />
+            <AIChatWidget userProfile={userProfile} />
             <div className="hidden w-full items-center gap-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 lg:flex">
               <Search size={15} className="text-slate-500 dark:text-slate-400" />
               <input

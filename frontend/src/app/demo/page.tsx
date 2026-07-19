@@ -45,7 +45,7 @@ export default function DemoPage() {
           </Link>
           <div className="h-4 w-px bg-white/20" />
           <h1 className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-emerald-400">
-            geoSelfie Live Demo
+            FinAtt Live Demo
           </h1>
         </div>
         <div className="text-sm text-slate-500 dark:text-slate-400 hidden sm:block">

@@ -11,13 +11,19 @@ export default async function HrPage() {
     redirect('/login')
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.role !== 'hr') {
+  // Fallback to user_metadata if profile query fails (e.g. RLS issues)
+  const role = profile?.role || user.user_metadata?.role || 'employee'
+  if (profileError) {
+    console.warn('Profile fetch failed on HR page, using metadata fallback:', profileError.message)
+  }
+
+  if (role !== 'hr') {
     redirect('/employee')
   }
   
@@ -38,7 +44,7 @@ export default async function HrPage() {
 
   return (
     <HrDashboardClient 
-      userProfile={{ id: user.id, name: profile.full_name, role: profile.role }}
+      userProfile={{ id: user.id, name: profile?.full_name || user.user_metadata?.full_name || user.email || 'HR User', role: role }}
       initialEmployees={employees || []}
 
       initialAnnouncements={announcements || []}

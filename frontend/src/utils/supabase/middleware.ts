@@ -44,14 +44,19 @@ export async function updateSession(request: NextRequest) {
 
   // If user is logged in, fetch their role
   if (user) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role, password_created')
       .eq('id', user.id)
       .single()
 
-    const role = profile?.role || 'employee'
-    const passwordCreated = profile?.password_created
+    // Fallback to user_metadata if profile query fails (e.g. RLS issues)
+    const role = profile?.role || user.user_metadata?.role || 'employee'
+    const passwordCreated = profile?.password_created ?? user.user_metadata?.password_created ?? true
+
+    if (profileError) {
+      console.warn('Middleware: profile fetch failed, using metadata fallback:', profileError.message)
+    }
 
     // If password is not created, force to /set-password
     if (passwordCreated === false && path !== '/set-password' && path !== '/auth/callback') {

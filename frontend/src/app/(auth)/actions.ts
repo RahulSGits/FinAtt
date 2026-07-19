@@ -20,17 +20,25 @@ export async function login(formData: FormData) {
   }
   
   if (authData.user) {
-     const { data: profile } = await supabase
+     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role, password_created')
       .eq('id', authData.user.id)
       .single()
+
+     // Fallback to user_metadata if profile query fails (e.g. RLS issues)
+     const role = profile?.role || authData.user.user_metadata?.role || 'employee'
+     const passwordCreated = profile?.password_created ?? authData.user.user_metadata?.password_created ?? true
+
+     if (profileError) {
+       console.warn('Profile fetch failed during login, using metadata fallback:', profileError.message)
+     }
       
-     if (profile?.password_created === false) {
+     if (passwordCreated === false) {
        redirect('/set-password')
      }
       
-     if (profile?.role === 'hr') {
+     if (role === 'hr') {
         redirect('/hr')
      } else {
         redirect('/employee')
