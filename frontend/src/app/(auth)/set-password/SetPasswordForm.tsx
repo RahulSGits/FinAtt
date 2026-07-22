@@ -1,83 +1,107 @@
 'use client'
 
 import { useState } from 'react'
+import { Eye, EyeOff, KeyRound } from 'lucide-react'
 import { setupPassword } from '../actions'
+import { Alert, Spinner } from '@/components/ui'
+
+const MIN_PASSWORD_LENGTH = 8
 
 export default function SetPasswordForm() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [show, setShow] = useState(false)
 
-  async function handleSubmit(formData: FormData) {
+  const mismatch = confirmPassword.length > 0 && password !== confirmPassword
+  const tooShort = password.length > 0 && password.length < MIN_PASSWORD_LENGTH
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (mismatch || tooShort) return
+
     setLoading(true)
     setError(null)
 
-    const password = formData.get('password') as string
-    const confirm = formData.get('confirmPassword') as string
-
-    if (password !== confirm) {
-      setError('Passwords do not match.')
-      setLoading(false)
-      return
-    }
-    
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.')
-      setLoading(false)
-      return
-    }
-
-    const result = await setupPassword(formData)
-
+    const result = await setupPassword(new FormData(e.currentTarget))
+    // Success redirects, so anything returned here is a failure.
     if (result?.error) {
       setError(result.error)
       setLoading(false)
     }
-    // On success, the action redirects automatically
   }
 
   return (
-    <form action={handleSubmit} className="mt-8 space-y-6">
-      <div className="space-y-4">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-900 dark:text-white" htmlFor="password">
-            New Password
-          </label>
+    <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+      {error && <Alert tone="error">{error}</Alert>}
+
+      <div>
+        <label className="label" htmlFor="password">
+          New password
+        </label>
+        <div className="relative">
           <input
             id="password"
             name="password"
-            type="password"
+            type={show ? 'text' : 'password'}
             required
-            className="block w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-white/10 dark:text-white"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            aria-invalid={tooShort}
+            aria-describedby="pw-help"
             placeholder="••••••••"
+            className="field pr-11"
           />
+          <button
+            type="button"
+            onClick={() => setShow((v) => !v)}
+            aria-label={show ? 'Hide password' : 'Show password'}
+            className="muted absolute right-1 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg transition-colors hover:text-[var(--text)] cursor-pointer"
+          >
+            {show ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
         </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-900 dark:text-white" htmlFor="confirmPassword">
-            Confirm Password
-          </label>
-          <input
-            id="confirmPassword"
-            name="confirmPassword"
-            type="password"
-            required
-            className="block w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-white/10 dark:text-white"
-            placeholder="••••••••"
-          />
-        </div>
+        <p
+          id="pw-help"
+          className="mt-1 text-xs"
+          style={{ color: tooShort ? 'var(--danger)' : 'var(--text-muted)' }}
+        >
+          At least {MIN_PASSWORD_LENGTH} characters.
+        </p>
       </div>
 
-      {error && (
-        <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
-          {error}
-        </div>
-      )}
+      <div>
+        <label className="label" htmlFor="confirmPassword">
+          Confirm password
+        </label>
+        <input
+          id="confirmPassword"
+          name="confirmPassword"
+          type={show ? 'text' : 'password'}
+          required
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          aria-invalid={mismatch}
+          placeholder="••••••••"
+          className="field"
+        />
+        {mismatch && (
+          <p role="alert" className="mt-1 text-xs" style={{ color: 'var(--danger)' }}>
+            Passwords do not match.
+          </p>
+        )}
+      </div>
 
       <button
         type="submit"
-        disabled={loading}
-        className="flex w-full justify-center rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 transition-colors"
+        disabled={loading || mismatch || tooShort}
+        className="btn btn-primary w-full"
       >
-        {loading ? 'Saving...' : 'Set Password'}
+        {loading ? <Spinner size={17} /> : <KeyRound size={16} />}
+        Set password
       </button>
     </form>
   )

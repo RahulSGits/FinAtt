@@ -1,232 +1,317 @@
-"use client";
+'use client'
 
-import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { motion, AnimatePresence, useDragControls } from "framer-motion";
-import { Sparkles, X, Send } from "lucide-react";
+import { AnimatePresence, motion } from 'motion/react'
+import { Fragment, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { Send, Sparkles, X } from 'lucide-react'
+import { Spinner } from './ui'
+import { useMounted } from '@/lib/useMounted'
 
-type Message = {
-  id: string;
-  role: "user" | "ai";
-  content: string;
-};
+interface Message {
+  id: string
+  role: 'user' | 'ai'
+  content: string
+}
 
-const HR_PROMPTS = [
-  "Who is absent today?",
-  "Show employees with less than 80% attendance.",
-  "Which department worked the most overtime this month?",
-  "Generate this month's attendance report.",
-];
+const PROMPTS: Record<string, string[]> = {
+  hr: [
+    'Who is absent today?',
+    'Which department has the lowest attendance?',
+    'How many employees have not enrolled their face?',
+    'Summarise this month for me.',
+  ],
+  employee: [
+    'What is my attendance percentage?',
+    'How many leaves have I taken?',
+    'What shift am I on?',
+  ],
+}
 
-const EMP_PROMPTS = [
-  "How many leaves do I have left?",
-  "When is my next holiday?",
-  "Show my attendance percentage.",
-];
-
-const ADMIN_PROMPTS = [
-  "How many active companies are there?",
-  "Show me the platform MRR.",
-  "What is the system status?",
-];
-
-export default function AIChatWidget({ userProfile }: { userProfile?: { role: string } }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
-  const dragControls = useDragControls();
-
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
-
-  const prompts = userProfile?.role === "admin" ? ADMIN_PROMPTS : userProfile?.role === "hr" ? HR_PROMPTS : EMP_PROMPTS;
+export default function AIChatWidget({
+  userProfile,
+}: {
+  userProfile?: { role: string }
+}) {
+  const [open, setOpen] = useState(false)
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
+  const [thinking, setThinking] = useState(false)
+  const mounted = useMounted()
+  const endRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (endRef.current) {
-      endRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, isTyping]);
+    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, thinking])
 
-  const handleSend = async (text: string) => {
-    if (!text.trim()) return;
-    const newMsg: Message = { id: crypto.randomUUID(), role: "user", content: text };
-    setMessages((prev) => [...prev, newMsg]);
-    setInput("");
-    setIsTyping(true);
+  useEffect(() => {
+    if (!open) return
+    inputRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+
+  const role = userProfile?.role === 'hr' ? 'hr' : 'employee'
+  const prompts = PROMPTS[role]
+
+  async function send(text: string) {
+    const trimmed = text.trim()
+    if (!trimmed || thinking) return
+
+    setMessages((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), role: 'user', content: trimmed },
+    ])
+    setInput('')
+    setThinking(true)
 
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, role: userProfile?.role || "employee" }),
-      });
-      const data = await res.json();
-      
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: "ai", content: data.response || (data.error ? `Error: ${data.error}` : "Sorry, I couldn't process that request.") },
-      ]);
-    } catch (error: unknown) {
-      console.error(error);
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: "ai", content: "Network error occurred while contacting AI." },
-      ]);
-    } finally {
-      setIsTyping(false);
-    }
-  };
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: trimmed, role }),
+      })
+      const data = await res.json()
 
-  if (!userProfile) return null; // Hide for unauthenticated users
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: 'ai',
+          content:
+            data.response ||
+            (data.error
+              ? `I could not answer that: ${data.error}`
+              : "Sorry, I couldn't work that out."),
+        },
+      ])
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: 'ai',
+          content: 'I could not reach the server. Check your connection and try again.',
+        },
+      ])
+    } finally {
+      setThinking(false)
+    }
+  }
+
+  if (!userProfile) return null
 
   return (
     <>
       <button
-        className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/30 transition-colors"
-        onClick={() => setIsOpen(true)}
-        title="Ask FinAtt AI"
+        onClick={() => setOpen(true)}
+        aria-label="Ask FinAtt AI"
+        className="touch-target rounded-lg transition-colors cursor-pointer"
+        style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
       >
         <Sparkles size={17} />
       </button>
 
-      {mounted && createPortal(
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            drag
-            dragControls={dragControls}
-            dragListener={false}
-            dragMomentum={false}
-            className="fixed bottom-24 right-6 z-50 flex h-[500px] w-[350px] flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-900 shadow-2xl sm:w-[400px]"
-          >
-            <div 
-              className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-800/50 p-4 cursor-grab active:cursor-grabbing select-none"
-              onPointerDown={(e) => dragControls.start(e)}
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400">
-                  <Sparkles size={16} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">FinAtt AI</h3>
-                  <p className="text-[10px] text-emerald-400">Online</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="rounded-lg p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-              {messages.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center text-center">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-400">
-                    <Sparkles size={24} />
-                  </div>
-                  <h4 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">How can I help you today?</h4>
-                  <p className="text-xs text-slate-500">
-                    Try asking me about attendance, reports, or anomalies.
-                  </p>
-                  
-                  <div className="mt-6 flex flex-col gap-2 w-full">
-                    {prompts.map((p, i) => (
-                      <button
-                        key={i}
-                        onClick={() => handleSend(p)}
-                        className="rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-3 py-2 text-left text-xs text-indigo-600 dark:text-indigo-300 transition hover:bg-indigo-500/10"
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2`}
-                    >
-                      {msg.role === "ai" && (
-                        <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-indigo-500 text-slate-900 dark:text-white mt-1">
-                          <Sparkles size={12} />
-                        </div>
-                      )}
-                      <div
-                        className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
-                          msg.role === "user"
-                            ? "bg-indigo-600 text-slate-900 dark:text-white rounded-tr-sm"
-                            : "bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/5 rounded-tl-sm"
-                        }`}
-                      >
-                        <div
-                          className="whitespace-pre-wrap"
-                          dangerouslySetInnerHTML={{
-                            __html: msg.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                  {isTyping && (
-                    <div className="flex justify-start gap-2">
-                      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-indigo-500 text-slate-900 dark:text-white mt-1">
-                        <Sparkles size={12} />
-                      </div>
-                      <div className="flex items-center gap-1 rounded-2xl bg-slate-800 px-4 py-3 border border-slate-200 dark:border-white/5 rounded-tl-sm">
-                        <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                        <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                        <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                      </div>
-                    </div>
-                  )}
-                  <div ref={endRef} />
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-slate-200 dark:border-white/10 bg-slate-800/50 p-3">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSend(input);
-                }}
-                className="relative flex items-center"
-              >
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask me anything..."
-                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-900 py-3 pl-4 pr-12 text-sm text-slate-900 dark:text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+      {mounted &&
+        createPortal(
+          <AnimatePresence>
+            {open && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setOpen(false)}
+                  className="fixed inset-0 z-[80] bg-slate-900/30 backdrop-blur-sm sm:hidden"
                 />
-                <button
-                  type="submit"
-                  disabled={!input.trim()}
-                  className="absolute right-2 flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-slate-900 dark:text-white disabled:bg-slate-700 disabled:text-slate-500 transition-colors"
+                <motion.div
+                  role="dialog"
+                  aria-label="FinAtt AI assistant"
+                  initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 20, scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                  className="glass-strong fixed inset-x-3 bottom-3 z-[85] flex h-[70vh] flex-col overflow-hidden sm:inset-x-auto sm:bottom-5 sm:right-5 sm:h-[520px] sm:w-[380px]"
                 >
-                  <Send size={14} />
-                </button>
-              </form>
-            </div>
-          </motion.div>
+                  <header className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className="grid h-8 w-8 place-items-center rounded-full"
+                        style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+                      >
+                        <Sparkles size={15} />
+                      </span>
+                      <div>
+                        <h3 className="text-sm font-semibold">FinAtt AI</h3>
+                        <p className="text-[11px]" style={{ color: 'var(--success)' }}>
+                          Connected to your live data
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setOpen(false)}
+                      aria-label="Close assistant"
+                      className="muted touch-target rounded-lg transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)] cursor-pointer"
+                    >
+                      <X size={17} />
+                    </button>
+                  </header>
+
+                  <div className="flex-1 overflow-y-auto p-4">
+                    {messages.length === 0 ? (
+                      <div className="flex h-full flex-col items-center justify-center text-center">
+                        <span
+                          className="mb-3 grid h-12 w-12 place-items-center rounded-full"
+                          style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+                        >
+                          <Sparkles size={22} />
+                        </span>
+                        <h4 className="text-sm font-medium">How can I help?</h4>
+                        <p className="muted mt-1 text-xs">
+                          Ask about attendance, leaves or your team.
+                        </p>
+                        <div className="mt-5 flex w-full flex-col gap-2">
+                          {prompts.map((p) => (
+                            <button
+                              key={p}
+                              onClick={() => send(p)}
+                              className="rounded-lg border px-3 py-2 text-left text-xs transition-colors cursor-pointer"
+                              style={{
+                                borderColor:
+                                  'color-mix(in srgb, var(--primary) 25%, transparent)',
+                                background: 'var(--primary-soft)',
+                                color: 'var(--primary)',
+                              }}
+                            >
+                              {p}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-3">
+                        {messages.map((msg) => (
+                          <div
+                            key={msg.id}
+                            className={`flex gap-2 ${
+                              msg.role === 'user' ? 'justify-end' : 'justify-start'
+                            }`}
+                          >
+                            {msg.role === 'ai' && (
+                              <span
+                                className="mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full"
+                                style={{
+                                  background: 'var(--primary)',
+                                  color: 'var(--primary-fg)',
+                                }}
+                              >
+                                <Sparkles size={11} />
+                              </span>
+                            )}
+                            <div
+                              className="max-w-[80%] rounded-xl px-3 py-2 text-sm"
+                              style={
+                                msg.role === 'user'
+                                  ? {
+                                      background: 'var(--primary)',
+                                      color: 'var(--primary-fg)',
+                                      borderTopRightRadius: 4,
+                                    }
+                                  : {
+                                      background: 'var(--surface-2)',
+                                      color: 'var(--text)',
+                                      borderTopLeftRadius: 4,
+                                    }
+                              }
+                            >
+                              <RichText text={msg.content} />
+                            </div>
+                          </div>
+                        ))}
+
+                        {thinking && (
+                          <div className="flex gap-2">
+                            <span
+                              className="mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full"
+                              style={{
+                                background: 'var(--primary)',
+                                color: 'var(--primary-fg)',
+                              }}
+                            >
+                              <Sparkles size={11} />
+                            </span>
+                            <div className="flex items-center gap-1 rounded-xl bg-[var(--surface-2)] px-3 py-3">
+                              {[0, 0.2, 0.4].map((delay) => (
+                                <motion.span
+                                  key={delay}
+                                  animate={{ y: [0, -4, 0] }}
+                                  transition={{ repeat: Infinity, duration: 0.7, delay }}
+                                  className="h-1.5 w-1.5 rounded-full"
+                                  style={{ background: 'var(--text-subtle)' }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div ref={endRef} />
+                      </div>
+                    )}
+                  </div>
+
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      send(input)
+                    }}
+                    className="flex items-center gap-2 border-t border-[var(--border)] p-3"
+                  >
+                    <input
+                      ref={inputRef}
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder="Ask me anything…"
+                      aria-label="Message"
+                      className="field"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!input.trim() || thinking}
+                      aria-label="Send message"
+                      className="btn btn-primary shrink-0 px-3"
+                    >
+                      {thinking ? <Spinner size={15} /> : <Send size={15} />}
+                    </button>
+                  </form>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>,
+          document.body,
         )}
-        </AnimatePresence>,
-        document.body
-      )}
     </>
-  );
+  )
+}
+
+/**
+ * Render `**bold**` without going through innerHTML.
+ *
+ * The previous version piped the model's reply into dangerouslySetInnerHTML,
+ * so any markup the model echoed back — including a script-bearing tag from a
+ * poisoned record in the database — would execute. Splitting on the delimiter
+ * and emitting real elements keeps everything else as inert text.
+ */
+function RichText({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return (
+    <span className="whitespace-pre-wrap">
+      {parts.map((part, i) =>
+        part.startsWith('**') && part.endsWith('**') && part.length > 4 ? (
+          <strong key={i}>{part.slice(2, -2)}</strong>
+        ) : (
+          <Fragment key={i}>{part}</Fragment>
+        ),
+      )}
+    </span>
+  )
 }

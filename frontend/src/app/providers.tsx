@@ -1,10 +1,12 @@
-"use client";
-import { ThemeProvider } from "@/components/ThemeProvider";
+'use client'
+
+import { ThemeProvider } from '@/components/ThemeProvider'
+import { ToastProvider } from '@/components/Toast'
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      {children}
+      <ToastProvider>{children}</ToastProvider>
     </ThemeProvider>
-  );
+  )
 }

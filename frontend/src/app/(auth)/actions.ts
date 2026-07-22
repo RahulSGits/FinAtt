@@ -1,83 +1,107 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import type { Role } from '@/lib/types'
 
-export async function login(formData: FormData) {
-  const supabase = await createClient()
-
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  }
-
-  const { error, data: authData } = await supabase.auth.signInWithPassword(data)
-
-  if (error) {
-    return { error: error.message }
-  }
-  
-  if (authData.user) {
-     const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role, password_created')
-      .eq('id', authData.user.id)
-      .single()
-
-     // Fallback to user_metadata if profile query fails (e.g. RLS issues)
-     const role = profile?.role || authData.user.user_metadata?.role || 'employee'
-     const passwordCreated = profile?.password_created ?? authData.user.user_metadata?.password_created ?? true
-
-     if (profileError) {
-       console.warn('Profile fetch failed during login, using metadata fallback:', profileError.message)
-     }
-      
-     if (passwordCreated === false) {
-       redirect('/set-password')
-     }
-      
-     if (role === 'hr') {
-        redirect('/hr')
-     } else {
-        redirect('/employee')
-     }
-  }
-  
-  return { error: 'Unknown error occurred' }
+export interface AuthActionState {
+  error?: string
+  /** Set when the account was created but still needs email confirmation. */
+  needsConfirmation?: boolean
 }
 
-export async function register(formData: FormData) {
+const MIN_PASSWORD_LENGTH = 8
+
+function landingFor(role: Role): string {
+  return role === 'hr' ? '/hr' : '/employee'
+}
+
+export async function login(formData: FormData): Promise<AuthActionState> {
   const supabase = await createClient()
 
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-    options: {
-      data: {
-        full_name: formData.get('fullName') as string,
-        role: formData.get('role') as string,
-        phone: formData.get('phone') as string,
-        department: formData.get('department') as string,
-        designation: formData.get('designation') as string,
-        account_status: 'active', // If self-registering, they are active
-        password_created: true // Since they just provided a password
-      }
+  const email = String(formData.get('email') ?? '').trim().toLowerCase()
+  const password = String(formData.get('password') ?? '')
+
+  if (!email || !password) {
+    return { error: 'Enter both your email and password.' }
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+
+  if (error) {
+    // Supabase returns the same generic message for a bad password and an
+    // unknown address, which is correct — it stops the form being used to
+    // enumerate who has an account.
+    return {
+      error: /invalid login/i.test(error.message)
+        ? 'That email and password combination is not recognised.'
+        : error.message,
     }
   }
 
-  const { error, data: authData } = await supabase.auth.signUp(data)
+  if (!data.user) return { error: 'Sign-in did not complete. Please try again.' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, password_created')
+    .eq('id', data.user.id)
+    .maybeSingle<{ role: Role; password_created: boolean | null }>()
+
+  const role = (profile?.role ?? data.user.user_metadata?.role ?? 'employee') as Role
+  const passwordCreated =
+    profile?.password_created ?? data.user.user_metadata?.password_created ?? true
+
+  // redirect() throws to unwind, so nothing after it runs.
+  redirect(passwordCreated === false ? '/set-password' : landingFor(role))
+}
+
+export async function register(formData: FormData): Promise<AuthActionState> {
+  const supabase = await createClient()
+
+  const email = String(formData.get('email') ?? '').trim().toLowerCase()
+  const password = String(formData.get('password') ?? '')
+  const confirmPassword = String(formData.get('confirmPassword') ?? '')
+  const fullName = String(formData.get('fullName') ?? '').trim()
+  const role = String(formData.get('role') ?? 'employee') as Role
+
+  if (!fullName) return { error: 'Enter your full name.' }
+  if (!email) return { error: 'Enter your email address.' }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return { error: `Choose a password of at least ${MIN_PASSWORD_LENGTH} characters.` }
+  }
+  if (password !== confirmPassword) return { error: 'The two passwords do not match.' }
+  if (role !== 'hr' && role !== 'employee') return { error: 'Pick a valid account role.' }
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+        role,
+        phone: String(formData.get('phone') ?? '').trim(),
+        department: String(formData.get('department') ?? '').trim(),
+        designation: String(formData.get('designation') ?? '').trim(),
+        account_status: 'active',
+        password_created: true,
+      },
+    },
+  })
 
   if (error) {
-    return { error: error.message }
+    return {
+      error: /already registered/i.test(error.message)
+        ? 'An account already exists for that email. Try signing in instead.'
+        : error.message,
+    }
   }
-  
-  if (authData.user) {
-    redirect('/login')
-  }
-  
-  return { error: 'Unknown error occurred' }
+
+  // With email confirmation switched on, signUp returns a user but no session.
+  // Telling the user to check their inbox beats bouncing them to a login form
+  // that will reject them.
+  if (data.user && !data.session) return { needsConfirmation: true }
+
+  redirect(landingFor(role))
 }
 
 export async function logout() {
@@ -86,96 +110,41 @@ export async function logout() {
   redirect('/login')
 }
 
-export async function setupPassword(formData: FormData) {
+export async function setupPassword(formData: FormData): Promise<AuthActionState> {
   const supabase = await createClient()
-  const password = formData.get('password') as string
+  const password = String(formData.get('password') ?? '')
+  const confirmPassword = String(formData.get('confirmPassword') ?? '')
 
-  // The user should already have a session via the invite link
-  const { data: { user } } = await supabase.auth.getUser()
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return { error: `Choose a password of at least ${MIN_PASSWORD_LENGTH} characters.` }
+  }
+  if (confirmPassword && password !== confirmPassword) {
+    return { error: 'The two passwords do not match.' }
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: 'Not authenticated' }
+    return { error: 'Your invite link has expired. Ask HR to send a new one.' }
   }
 
-  // Update password in Auth
   const { error: authError } = await supabase.auth.updateUser({ password })
-  if (authError) {
-    return { error: authError.message }
-  }
+  if (authError) return { error: authError.message }
 
-  // Update profile
   const { error: profileError } = await supabase
     .from('profiles')
-    .update({ 
-      password_created: true, 
-      account_status: 'active' 
-    })
+    .update({ password_created: true, account_status: 'active' })
     .eq('id', user.id)
 
-  if (profileError) {
-    return { error: profileError.message }
-  }
+  if (profileError) return { error: profileError.message }
 
-  redirect('/employee')
-}
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle<{ role: Role }>()
 
-export async function createEmployee(formData: FormData) {
-  const supabase = await createClient()
-  // Ensure the caller is an HR
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'hr') return { error: 'Unauthorized' }
-
-  // Use service role for admin tasks
-  const supabaseAdmin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-
-  const email = formData.get('email') as string
-  const fullName = formData.get('fullName') as string
-  const phone = formData.get('phone') as string
-  const department = formData.get('department') as string
-  const designation = formData.get('designation') as string
-  const joiningDate = formData.get('joiningDate') as string
-  const gender = formData.get('gender') as string
-  const address = formData.get('address') as string
-  const status = formData.get('status') as string || 'active'
-
-  // Invite user securely
-  const { data: authData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    data: {
-      full_name: fullName,
-      role: 'employee',
-      phone: phone,
-      department: department,
-      designation: designation,
-      account_status: 'pending',
-      password_created: false
-    }
-  })
-
-  if (inviteError) {
-    return { error: inviteError.message }
-  }
-
-  // The database trigger creates the profile and the basic employee record.
-  // We now update the employee record with the remaining fields using admin client
-  if (authData.user) {
-    await supabaseAdmin
-      .from('employees')
-      .update({
-        joining_date: joiningDate || null,
-        gender: gender || null,
-        address: address || null,
-        status: status,
-        phone: phone || null
-      })
-      .eq('user_id', authData.user.id)
-  }
-  
-  revalidatePath('/hr')
-  return { success: true }
+  redirect(landingFor(profile?.role ?? 'employee'))
 }

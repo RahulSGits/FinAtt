@@ -1,38 +1,47 @@
-import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import { KeyRound } from 'lucide-react'
+import { createClient } from '@/utils/supabase/server'
 import SetPasswordForm from './SetPasswordForm'
+
+export const dynamic = 'force-dynamic'
 
 export default async function SetPasswordPage() {
   const supabase = await createClient()
 
-  // Verify the user is authenticated (via the invite link)
-  const { data: { user } } = await supabase.auth.getUser()
+  // Reaching this page requires the session created by the invite link.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
+  if (!user) redirect('/login')
 
-  // Verify that the user actually needs to set a password
   const { data: profile } = await supabase
     .from('profiles')
-    .select('password_created')
+    .select('role, password_created')
     .eq('id', user.id)
-    .single()
+    .maybeSingle<{ role: string; password_created: boolean | null }>()
 
+  // Already set up — send them on rather than letting them reset by accident.
   if (profile?.password_created) {
-    redirect('/')
+    redirect(profile.role === 'hr' ? '/hr' : '/employee')
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8 rounded-2xl border border-slate-200 bg-white p-8 shadow-xl dark:border-white/10 dark:bg-slate-900">
+    <div className="grid min-h-dvh place-items-center p-4">
+      <div className="card w-full max-w-md p-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Create Password</h2>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            Welcome! Please set a secure password for your new account to continue.
+          <span
+            className="mx-auto grid h-12 w-12 place-items-center rounded-2xl"
+            style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+          >
+            <KeyRound size={22} />
+          </span>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight">Set your password</h1>
+          <p className="muted mt-2 text-sm">
+            Welcome to FinAtt. Choose a password to finish setting up your account.
           </p>
         </div>
-        
+
         <SetPasswordForm />
       </div>
     </div>

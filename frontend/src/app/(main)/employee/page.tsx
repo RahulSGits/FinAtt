@@ -1,73 +1,72 @@
-import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import { createClient } from '@/utils/supabase/server'
+import { getSession } from '@/lib/auth'
+import { localDateKey } from '@/lib/format'
 import EmployeeDashboardClient from './EmployeeDashboardClient'
+import type { Announcement, Attendance, Employee, Leave, Shift, Site } from '@/lib/types'
+
+export const dynamic = 'force-dynamic'
 
 export default async function EmployeePage() {
+  const session = await getSession()
+  if (!session) redirect('/login')
+  if (session.role !== 'employee') redirect('/hr')
+
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
-  // Fallback to user_metadata if profile query fails (e.g. RLS issues)
-  const role = profile?.role || user.user_metadata?.role || 'employee'
-  if (profileError) {
-    console.warn('Profile fetch failed on Employee page, using metadata fallback:', profileError.message)
-  }
-
-  if (role !== 'employee') {
-    redirect('/hr')
-  }
-  
-  // Fetch employee record
   const { data: employee } = await supabase
     .from('employees')
     .select('*')
-    .eq('user_id', user.id)
-    .single()
-    
-  const employeeId = employee?.id
-  
-  let attendance = []
-  let leaves = []
-  
-  if (employeeId) {
-    const { data: attData } = await supabase
-      .from('attendance')
+    .eq('user_id', session.userId)
+    .maybeSingle<Employee>()
+
+  // A year of history covers the calendar and every summary on the page.
+  const since = new Date()
+  since.setFullYear(since.getFullYear() - 1)
+
+  const [attendanceRes, leavesRes, announcementsRes, siteRes, shiftRes] = await Promise.all([
+    employee
+      ? supabase
+          .from('attendance')
+          .select('*')
+          .eq('employee_id', employee.id)
+          .gte('date', localDateKey(since))
+          .order('date', { ascending: false })
+      : Promise.resolve({ data: [] as Attendance[] }),
+    employee
+      ? supabase
+          .from('leaves')
+          .select('*')
+          .eq('employee_id', employee.id)
+          .order('start_date', { ascending: false })
+      : Promise.resolve({ data: [] as Leave[] }),
+    supabase
+      .from('announcements')
       .select('*')
-      .eq('employee_id', employeeId)
-      .order('date', { ascending: false })
-      .limit(30)
-    attendance = attData || []
-    
-    const { data: leavesData } = await supabase
-      .from('leaves')
-      .select('*')
-      .eq('employee_id', employeeId)
-      .order('start_date', { ascending: false })
-    leaves = leavesData || []
-  }
-    
-  const { data: announcements } = await supabase
-    .from('announcements')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(5)
+      .order('created_at', { ascending: false })
+      .limit(20),
+    employee?.site_id
+      ? supabase.from('sites').select('*').eq('id', employee.site_id).maybeSingle<Site>()
+      : Promise.resolve({ data: null }),
+    employee?.shift_id
+      ? supabase.from('shifts').select('*').eq('id', employee.shift_id).maybeSingle<Shift>()
+      : Promise.resolve({ data: null }),
+  ])
+
+  const attendance = (attendanceRes.data ?? []) as Attendance[]
+  const today = localDateKey()
 
   return (
-    <EmployeeDashboardClient 
-      userProfile={{ id: user.id, name: profile?.full_name || user.user_metadata?.full_name || user.email || 'Employee', role: role }}
-      employeeData={employee || {}}
-
-      initialAnnouncements={announcements || []}
+    <EmployeeDashboardClient
+      userProfile={{ id: session.userId, name: session.name, role: 'employee' }}
+      email={session.email}
+      employee={employee ?? null}
+      site={siteRes.data ?? null}
+      shift={shiftRes.data ?? null}
+      attendance={attendance}
+      todayRecord={attendance.find((a) => a.date === today) ?? null}
+      leaves={(leavesRes.data ?? []) as Leave[]}
+      announcements={(announcementsRes.data ?? []) as Announcement[]}
     />
   )
 }

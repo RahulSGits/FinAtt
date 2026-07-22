@@ -1,193 +1,256 @@
 'use client'
 
+import { motion } from 'motion/react'
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { UserPlus, ArrowRight, Building2, Briefcase, Phone, UserCircle2 } from 'lucide-react'
-import { register } from '../actions'
 import Link from 'next/link'
+import { ArrowRight, Eye, EyeOff, Fingerprint, MailCheck } from 'lucide-react'
+import { register } from '../actions'
+import { Alert, Spinner } from '@/components/ui'
+
+const MIN_PASSWORD_LENGTH = 8
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [confirmationSent, setConfirmationSent] = useState(false)
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+
+  const mismatch = confirmPassword.length > 0 && password !== confirmPassword
+  const tooShort = password.length > 0 && password.length < MIN_PASSWORD_LENGTH
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (mismatch || tooShort) return
+
     setLoading(true)
     setError(null)
-    const formData = new FormData(e.currentTarget)
-    
-    // Validate password match
-    if (formData.get('password') !== formData.get('confirmPassword')) {
-      setError('Passwords do not match')
+
+    const res = await register(new FormData(e.currentTarget))
+    if (res?.needsConfirmation) {
+      setConfirmationSent(true)
       setLoading(false)
-      return
-    }
-    
-    const res = await register(formData)
-    if (res?.error) {
+    } else if (res?.error) {
       setError(res.error)
       setLoading(false)
     }
   }
 
+  if (confirmationSent) {
+    return (
+      <div className="grid min-h-dvh place-items-center p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="card w-full max-w-md p-8 text-center"
+        >
+          <span
+            className="mx-auto grid h-14 w-14 place-items-center rounded-2xl"
+            style={{ background: 'var(--success-soft)', color: 'var(--success)' }}
+          >
+            <MailCheck size={26} />
+          </span>
+          <h1 className="mt-5 text-2xl font-bold">Check your inbox</h1>
+          <p className="muted mt-2">
+            We sent you a confirmation link. Click it to activate your account, then sign
+            in.
+          </p>
+          <Link href="/login" className="btn btn-primary mt-6 w-full">
+            Go to sign in
+          </Link>
+        </motion.div>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 items-center justify-center p-4 py-12">
+    <div className="grid min-h-dvh place-items-center p-4 py-10">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-white/10"
+        className="card w-full max-w-2xl overflow-hidden"
       >
-        <div className="p-8 sm:p-12">
+        <div className="p-6 sm:p-10">
           <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500">
-              <UserPlus size={28} />
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Create an account
+            <Link href="/" className="inline-flex items-center gap-2">
+              <span
+                className="grid h-10 w-10 place-items-center rounded-xl"
+                style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+              >
+                <Fingerprint size={20} />
+              </span>
+            </Link>
+            <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
+              Create your account
             </h1>
-            <p className="mt-2 text-slate-500 dark:text-slate-400">
-              Join FinAtt to manage your workforce
-            </p>
+            <p className="muted mt-2">Join FinAtt to manage attendance end to end.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-500/10 dark:text-red-400">
-                {error}
-              </div>
-            )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && <Alert tone="error">{error}</Alert>}
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Full Name</label>
-                <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                    <UserCircle2 size={18} />
-                  </div>
-                  <input
-                    name="fullName"
-                    type="text"
-                    required
-                    placeholder="John Doe"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-slate-900 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400 dark:focus:bg-slate-800"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Email Address</label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="fullName">
+                  Full name *
+                </label>
                 <input
+                  id="fullName"
+                  name="fullName"
+                  required
+                  autoComplete="name"
+                  placeholder="Priya Menon"
+                  className="field"
+                />
+              </div>
+
+              <div>
+                <label className="label" htmlFor="email">
+                  Email address *
+                </label>
+                <input
+                  id="email"
                   name="email"
                   type="email"
                   required
-                  placeholder="john@example.com"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-slate-900 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400 dark:focus:bg-slate-800"
+                  autoComplete="email"
+                  placeholder="priya@company.com"
+                  className="field"
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
-                <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                    <Phone size={18} />
-                  </div>
-                  <input
-                    name="phone"
-                    type="tel"
-                    placeholder="+1 234 567 890"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-slate-900 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400 dark:focus:bg-slate-800"
-                  />
-                </div>
+              <div>
+                <label className="label" htmlFor="phone">
+                  Phone
+                </label>
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  autoComplete="tel"
+                  placeholder="+91 98765 43210"
+                  className="field"
+                />
               </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Account Role</label>
-                <select
-                  name="role"
-                  required
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-slate-900 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400 dark:focus:bg-slate-800 appearance-none"
-                >
+
+              <div>
+                <label className="label" htmlFor="role">
+                  Account role *
+                </label>
+                <select id="role" name="role" required defaultValue="employee" className="field">
                   <option value="employee">Employee</option>
-                  <option value="hr">HR Manager</option>
+                  <option value="hr">HR manager</option>
                 </select>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Department</label>
-                <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                    <Building2 size={18} />
-                  </div>
-                  <input
-                    name="department"
-                    type="text"
-                    required
-                    placeholder="Engineering"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-slate-900 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400 dark:focus:bg-slate-800"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Designation</label>
-                <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                    <Briefcase size={18} />
-                  </div>
-                  <input
-                    name="designation"
-                    type="text"
-                    required
-                    placeholder="Software Engineer"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-slate-900 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400 dark:focus:bg-slate-800"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Password</label>
+              <div>
+                <label className="label" htmlFor="department">
+                  Department
+                </label>
                 <input
-                  name="password"
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-slate-900 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400 dark:focus:bg-slate-800"
+                  id="department"
+                  name="department"
+                  placeholder="Engineering"
+                  className="field"
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Confirm Password</label>
+              <div>
+                <label className="label" htmlFor="designation">
+                  Designation
+                </label>
                 <input
+                  id="designation"
+                  name="designation"
+                  placeholder="Software Engineer"
+                  className="field"
+                />
+              </div>
+
+              <div>
+                <label className="label" htmlFor="password">
+                  Password *
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    aria-invalid={tooShort}
+                    aria-describedby="password-help"
+                    placeholder="••••••••"
+                    className="field pr-11"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="muted absolute right-1 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg transition-colors hover:text-[var(--text)] cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <p
+                  id="password-help"
+                  className="mt-1 text-xs"
+                  style={{ color: tooShort ? 'var(--danger)' : 'var(--text-muted)' }}
+                >
+                  At least {MIN_PASSWORD_LENGTH} characters.
+                </p>
+              </div>
+
+              <div>
+                <label className="label" htmlFor="confirmPassword">
+                  Confirm password *
+                </label>
+                <input
+                  id="confirmPassword"
                   name="confirmPassword"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  aria-invalid={mismatch}
+                  aria-describedby="confirm-help"
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-slate-900 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400 dark:focus:bg-slate-800"
+                  className="field"
                 />
+                {/* Validated inline, next to the field, not in a banner at the top. */}
+                {mismatch && (
+                  <p id="confirm-help" role="alert" className="mt-1 text-xs" style={{ color: 'var(--danger)' }}>
+                    Passwords do not match.
+                  </p>
+                )}
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 disabled:opacity-70 mt-4"
+              disabled={loading || mismatch || tooShort}
+              className="btn btn-primary w-full"
             >
               {loading ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                <Spinner size={17} />
               ) : (
                 <>
-                  Create Account <ArrowRight size={18} />
+                  Create account <ArrowRight size={17} />
                 </>
               )}
             </button>
           </form>
         </div>
-        
-        <div className="bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-white/5 py-4 px-8 text-center">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+
+        <div className="border-t border-[var(--border)] bg-[var(--surface-2)] px-6 py-4 text-center">
+          <p className="muted text-sm">
             Already have an account?{' '}
-            <Link href="/login" className="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
+            <Link href="/login" className="font-medium text-[var(--primary)] hover:underline">
               Sign in
             </Link>
           </p>

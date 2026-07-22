@@ -1,65 +1,77 @@
-"use client";
+'use client'
 
-import { motion, AnimatePresence } from "framer-motion";
-
-import { useEffect, useState } from "react";
-import {
-  Fingerprint,
-  Bell,
-  Menu,
-  LogOut,
-  Search,
-  Sun,
-  Moon,
-
-} from "lucide-react";
-import { useTheme } from "next-themes";
-import AIChatWidget from "./AIChatWidget";
-import { logout } from "@/app/(auth)/actions";
+import { AnimatePresence, motion } from 'motion/react'
+import { useEffect, useState } from 'react'
+import { Bell, Fingerprint, LogOut, Menu, Moon, Sun, X } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import AIChatWidget from './AIChatWidget'
+import { logout } from '@/app/(auth)/actions'
+import { relativeTime } from '@/lib/format'
+import { useMounted } from '@/lib/useMounted'
 
 export interface NavItem {
-  key: string;
-  label: string;
-  icon: React.ComponentType<{ size?: number }>;
+  key: string
+  label: string
+  icon: React.ComponentType<{ size?: number }>
+  /** Rendered as a count chip on the nav item, e.g. pending approvals. */
+  badge?: number
 }
 
 export interface UserProfile {
-  id: string;
-  name: string;
-  role: string;
+  id: string
+  name: string
+  role: string
 }
 
+export interface Notification {
+  id: string
+  title: string
+  body: string
+  createdAt: string
+  tone?: 'info' | 'success' | 'warning'
+}
 
 export default function DashboardShell({
   nav,
   active,
   onSelect,
   userProfile,
+  notifications = [],
   children,
 }: {
-  nav: NavItem[];
-  active: string;
-  onSelect: (k: string) => void;
-  userProfile: UserProfile;
-  children: React.ReactNode;
+  nav: NavItem[]
+  active: string
+  onSelect: (key: string) => void
+  userProfile: UserProfile
+  notifications?: Notification[]
+  children: React.ReactNode
 }) {
-  const [sideOpen, setSideOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const unread = 0;
-  const notifs: Record<string, string>[] = [];
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
+  const [sideOpen, setSideOpen] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const { resolvedTheme, setTheme } = useTheme()
+  const mounted = useMounted()
 
-  const roleLabel = userProfile.role === "hr" ? "HR Console" : "Employee Portal";
+  // Close the mobile drawer when the viewport grows past the breakpoint,
+  // otherwise it stays mounted and traps clicks behind the desktop sidebar.
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const onChange = () => mq.matches && setSideOpen(false)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  const roleLabel = userProfile.role === 'hr' ? 'HR Console' : 'Employee Portal'
+  const isDark = resolvedTheme === 'dark'
+
+  async function handleLogout() {
+    setSigningOut(true)
+    await logout()
+  }
 
   return (
     <div className="flex min-h-screen">
-      {/* ── Mobile sidebar overlay ──────────────────────────────────── */}
+      {/* ── Mobile drawer ──────────────────────────────────────────────── */}
       <AnimatePresence>
         {sideOpen && (
           <>
@@ -67,172 +79,191 @@ export default function DashboardShell({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/20 dark:bg-black/50 md:hidden"
               onClick={() => setSideOpen(false)}
+              className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm md:hidden dark:bg-black/60"
             />
             <motion.aside
-              initial={{ x: -280 }}
+              initial={{ x: -288 }}
               animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              transition={{ type: "spring", damping: 26, stiffness: 240 }}
-              className="fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-slate-200 dark:border-white/5 bg-white/80 dark:bg-[#0a0c18] backdrop-blur-xl p-4 md:hidden"
+              exit={{ x: -288 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed left-0 top-0 z-50 flex h-dvh w-72 flex-col border-r border-[var(--border)] bg-[var(--surface)] p-3 md:hidden"
             >
+              <button
+                onClick={() => setSideOpen(false)}
+                aria-label="Close menu"
+                className="muted absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-lg hover:bg-[var(--surface-2)] cursor-pointer"
+              >
+                <X size={18} />
+              </button>
               <SidebarContent
                 nav={nav}
                 active={active}
                 onSelect={(k) => {
-                  onSelect(k);
-                  setSideOpen(false);
+                  onSelect(k)
+                  setSideOpen(false)
                 }}
                 roleLabel={roleLabel}
-                onLogout={async () => {
-                  await logout();
-                }}
+                onLogout={handleLogout}
+                signingOut={signingOut}
               />
             </motion.aside>
           </>
         )}
       </AnimatePresence>
 
-      {/* ── Desktop sidebar ─────────────────────────────────────────── */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200/80 dark:border-white/5 p-4 md:flex" style={{ background: 'var(--sidebar-bg)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
+      {/* ── Desktop sidebar ────────────────────────────────────────────── */}
+      <aside
+        className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-[var(--border)] p-3 md:flex"
+        style={{
+          background: 'var(--sidebar-bg)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+        }}
+      >
         <SidebarContent
           nav={nav}
           active={active}
           onSelect={onSelect}
           roleLabel={roleLabel}
-          onLogout={async () => {
-            await logout();
-          }}
+          onLogout={handleLogout}
+          signingOut={signingOut}
         />
       </aside>
 
-      {/* ── Main ────────────────────────────────────────────────────── */}
+      {/* ── Main column ────────────────────────────────────────────────── */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header
-          className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 dark:border-white/10 px-4 py-3 sm:px-5"
+          className="sticky top-0 z-30 flex items-center gap-2 border-b border-[var(--border)] px-3 py-2.5 sm:px-4"
           style={{
-            background: "var(--header-bg)",
-            backdropFilter: "blur(14px)",
-            WebkitBackdropFilter: "blur(14px)",
+            background: 'var(--header-bg)',
+            backdropFilter: 'blur(14px)',
+            WebkitBackdropFilter: 'blur(14px)',
           }}
         >
-          {/* Mobile hamburger */}
           <button
             onClick={() => setSideOpen(true)}
-            className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 dark:bg-white/5 md:hidden"
+            aria-label="Open menu"
+            className="touch-target rounded-lg bg-[var(--surface-2)] md:hidden cursor-pointer"
           >
             <Menu size={18} />
           </button>
 
-          <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 dark:bg-white/5 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+          <div className="flex min-w-0 items-center gap-2">
+            <span
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-bold"
+              style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+            >
               FA
             </span>
-            <div className="hidden sm:block">
-              <div className="text-sm font-medium leading-tight">
-                FinAtt
-              </div>
-              <div className="muted text-xs">
-                {userProfile.role === "employee" ? "Employee Portal" : "HR Dashboard"}
-              </div>
+            <div className="hidden min-w-0 sm:block">
+              <div className="truncate text-sm font-semibold leading-tight">FinAtt</div>
+              <div className="muted truncate text-xs">{roleLabel}</div>
             </div>
           </div>
 
-          {/* Center Area: AI & Search */}
-          <div className="mx-auto flex items-center justify-end gap-3 lg:w-full lg:max-w-sm lg:justify-center">
+          <div className="ml-auto flex items-center gap-1.5">
             <AIChatWidget userProfile={userProfile} />
-            <div className="hidden w-full items-center gap-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 lg:flex">
-              <Search size={15} className="text-slate-500 dark:text-slate-400" />
-              <input
-                placeholder="Search..."
-                className="w-full bg-transparent text-sm outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              />
+
+            {mounted && (
+              <button
+                onClick={() => setTheme(isDark ? 'light' : 'dark')}
+                aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+                className="touch-target muted rounded-lg transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)] cursor-pointer"
+              >
+                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+            )}
+
+            <div className="relative">
+              <button
+                onClick={() => setNotifOpen((v) => !v)}
+                aria-label={`Notifications${notifications.length ? `, ${notifications.length} unread` : ''}`}
+                aria-expanded={notifOpen}
+                className="touch-target muted relative rounded-lg transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)] cursor-pointer"
+              >
+                <Bell size={18} />
+                {notifications.length > 0 && (
+                  <span
+                    className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+                    style={{ background: 'var(--danger)' }}
+                  >
+                    {notifications.length > 9 ? '9+' : notifications.length}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {notifOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setNotifOpen(false)}
+                      aria-hidden
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      className="glass-strong absolute right-0 z-50 mt-2 flex max-h-[70vh] w-[min(22rem,calc(100vw-2rem))] origin-top-right flex-col overflow-hidden"
+                    >
+                      <div className="border-b border-[var(--border)] px-4 py-3">
+                        <span className="text-sm font-semibold">Notifications</span>
+                      </div>
+                      {notifications.length === 0 ? (
+                        <div className="muted flex flex-col items-center gap-2 py-10 text-sm">
+                          <Bell size={22} className="opacity-30" />
+                          You&apos;re all caught up
+                        </div>
+                      ) : (
+                        <ul className="divide-y divide-[var(--border)] overflow-y-auto">
+                          {notifications.map((n) => (
+                            <li key={n.id} className="px-4 py-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-sm font-medium">{n.title}</p>
+                                <span className="muted shrink-0 text-[11px]">
+                                  {relativeTime(n.createdAt)}
+                                </span>
+                              </div>
+                              <p className="muted mt-0.5 line-clamp-2 text-xs">{n.body}</p>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
-          </div>
 
-          {/* Theme toggle */}
-          {mounted && (
-            <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-indigo-50 dark:bg-white/5 text-indigo-600 dark:text-indigo-300 transition-all hover:bg-indigo-100 dark:hover:bg-white/10 hover:scale-105" aria-label="Toggle theme">
-              {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
-            </button>
-          )}
-
-          {/* Notification bell */}
-          <div className="relative">
-            <button
-              onClick={() => setNotifOpen(!notifOpen)}
-              className="relative grid h-9 w-9 place-items-center rounded-xl bg-indigo-50 dark:bg-white/5 text-indigo-600 dark:text-indigo-300 transition-all hover:bg-indigo-100 dark:hover:bg-white/10 hover:scale-105"
-            >
-              <Bell size={17} />
-              {unread > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-slate-900 dark:text-white">
-                  {unread > 9 ? "9+" : unread}
-                </span>
-              )}
-            </button>
-            <AnimatePresence>
-              {notifOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                  transition={{ type: "spring", bounce: 0.35, duration: 0.5 }}
-                  className="notif-dropdown glass-strong rounded-2xl p-4 shadow-2xl border border-slate-200 dark:border-white/10 w-80 sm:w-96 flex flex-col right-0 origin-top-right z-50 absolute mt-2"
-                >
-                  <div className="mb-3 flex items-center justify-between px-1">
-                    <span className="text-base font-semibold tracking-tight">Notifications</span>
-                  </div>
-                  {notifs.length === 0 ? (
-                    <div className="muted py-8 text-center text-sm flex flex-col items-center gap-2">
-                      <Bell size={24} className="opacity-20" />
-                      <p>You&apos;re all caught up!</p>
-                    </div>
-                  ) : (
-                    <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
-                      {/* Notifications would go here */}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* User avatar */}
-          <div className="flex items-center gap-2">
-            <span
-              className="grid h-9 w-9 place-items-center rounded-full text-sm font-semibold text-white ring-2 ring-indigo-400/40 dark:ring-indigo-400/30"
-              style={{
-                background: "linear-gradient(135deg,#6366f1,#a855f7)",
-              }}
-            >
-              {userProfile.name
-                .split(" ")
-                .map((w) => w[0])
-                .slice(0, 2)
-                .join("")}
-            </span>
-            <div className="hidden sm:block">
-              <div className="text-sm font-medium leading-tight">
-                {userProfile.name}
+            <div className="flex items-center gap-2 pl-1">
+              <span
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-semibold text-white"
+                style={{ background: 'linear-gradient(135deg,#4f46e5,#a855f7)' }}
+                aria-hidden
+              >
+                {userProfile.name
+                  .split(' ')
+                  .map((w) => w[0])
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase()}
+              </span>
+              <div className="hidden min-w-0 lg:block">
+                <div className="truncate text-sm font-medium leading-tight">
+                  {userProfile.name}
+                </div>
+                <div className="muted text-xs capitalize">{userProfile.role}</div>
               </div>
-              <div className="muted text-xs capitalize">{userProfile.role}</div>
             </div>
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-5">{children}</main>
+        <main className="flex-1 p-3 sm:p-5">{children}</main>
       </div>
-
-      {/* Close notif on outside click */}
-      {notifOpen && (
-        <div
-          className="fixed inset-0 z-20"
-          onClick={() => setNotifOpen(false)}
-        />
-      )}
     </div>
-  );
+  )
 }
 
 function SidebarContent({
@@ -241,56 +272,83 @@ function SidebarContent({
   onSelect,
   roleLabel,
   onLogout,
+  signingOut,
 }: {
-  nav: NavItem[];
-  active: string;
-  onSelect: (k: string) => void;
-  roleLabel: string;
-  onLogout: () => void;
+  nav: NavItem[]
+  active: string
+  onSelect: (key: string) => void
+  roleLabel: string
+  onLogout: () => void
+  signingOut: boolean
 }) {
   return (
     <>
-      <div className="mb-6 flex items-center gap-2 px-2 pt-2">
-        <span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-300">
-          <Fingerprint size={20} />
+      <div className="mb-5 flex items-center gap-2 px-2 pt-2">
+        <span
+          className="grid h-9 w-9 place-items-center rounded-xl"
+          style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+        >
+          <Fingerprint size={19} />
         </span>
-        <div>
-          <div className="text-sm font-semibold leading-tight">FinAtt</div>
-          <div className="muted text-xs">{roleLabel}</div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold leading-tight">FinAtt</div>
+          <div className="muted truncate text-xs">{roleLabel}</div>
         </div>
       </div>
-      <nav className="flex-1 space-y-1">
+
+      <nav className="flex-1 space-y-0.5 overflow-y-auto" aria-label="Sections">
         {nav.map((item) => {
-          const Icon = item.icon;
-          const on = active === item.key;
+          const Icon = item.icon
+          const on = active === item.key
           return (
             <button
               key={item.key}
               onClick={() => onSelect(item.key)}
-              className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
+              aria-current={on ? 'page' : undefined}
+              // The label sits in a nested span behind an absolutely-positioned
+              // highlight; naming the button explicitly keeps screen readers
+              // from announcing it as an unlabelled control.
+              aria-label={item.badge ? `${item.label}, ${item.badge} pending` : item.label}
+              className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors cursor-pointer ${
                 on
-                  ? "text-indigo-700 font-medium dark:text-white"
-                  : "muted hover:text-slate-900 dark:hover:text-white hover:bg-indigo-50/50 dark:hover:bg-white/5"
+                  ? 'font-medium text-[var(--primary)]'
+                  : 'muted hover:bg-[var(--surface-2)] hover:text-[var(--text)]'
               }`}
             >
               {on && (
                 <motion.span
-                  layoutId="navactive"
-                  className="absolute inset-0 rounded-xl border border-indigo-400/40 bg-indigo-500/15"
+                  layoutId="nav-active"
+                  className="absolute inset-0 rounded-lg"
+                  style={{
+                    background: 'var(--primary-soft)',
+                    border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
+                  }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                 />
               )}
-              <Icon size={18} />
-              <span className="relative">{item.label}</span>
+              <Icon size={17} />
+              <span className="relative flex-1 text-left">{item.label}</span>
+              {item.badge ? (
+                <span
+                  className="relative rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                  style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}
+                >
+                  {item.badge}
+                </span>
+              ) : null}
             </button>
-          );
+          )
         })}
       </nav>
+
       <button
         onClick={onLogout}
-        className="muted flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
+        disabled={signingOut}
+        className="muted mt-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)] disabled:opacity-60 cursor-pointer"
       >
-        <LogOut size={18} /> Sign out
+        <LogOut size={17} />
+        {signingOut ? 'Signing out…' : 'Sign out'}
       </button>
     </>
-  );
+  )
 }

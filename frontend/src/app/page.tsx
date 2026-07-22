@@ -1,180 +1,227 @@
-"use client";
+'use client'
 
-import { motion } from "framer-motion";
-import Link from "next/link";
+import { motion, useReducedMotion } from 'motion/react'
+import Link from 'next/link'
 import {
-  ScanFace,
-  MapPin,
-  ShieldCheck,
-  BarChart3,
-  Clock,
-  Users,
-  Fingerprint,
-  Building2,
   ArrowRight,
+  BarChart3,
+  Building2,
+  CalendarCheck,
+  Clock,
+  Fingerprint,
+  MapPin,
+  Moon,
+  ScanFace,
+  ShieldCheck,
   Sparkles,
   Sun,
-  Moon,
-} from "lucide-react";
-import Globe from "@/components/Globe";
-import TiltCard from "@/components/TiltCard";
-import { useTheme } from "next-themes";
-import React, { useState, useEffect } from "react";
+  Users,
+} from 'lucide-react'
+import { useTheme } from 'next-themes'
+import Globe from '@/components/Globe'
+import TiltCard from '@/components/TiltCard'
+import { useMounted } from '@/lib/useMounted'
 
 const features = [
-  { icon: ScanFace, title: "AI Face Attendance", desc: "Liveness + anti-spoof selfie check with 1:1 face matching." },
-  { icon: MapPin, title: "Geofenced GPS", desc: "Admin-set radius, mock-location & spoof detection." },
-  { icon: Clock, title: "Shift Engine", desc: "Fixed, flexible, night, rotational & split shifts with rules." },
-  { icon: ShieldCheck, title: "Enterprise Security", desc: "RBAC, Argon2, JWT rotation, audit logs, OWASP hardened." },
-  { icon: BarChart3, title: "Live Analytics", desc: "Real-time KPIs, heatmaps, overtime & absenteeism insight." },
-  { icon: Building2, title: "Multi-Tenant SaaS", desc: "Companies, branches, plants — isolated & white-labelled." },
-];
+  {
+    icon: ScanFace,
+    title: 'Face-verified check-in',
+    desc: 'A 128-point face template plus a blink liveness gate, matched on the server so a photo cannot pass.',
+  },
+  {
+    icon: MapPin,
+    title: 'Geofenced sites',
+    desc: 'Draw a radius on the map. Location is re-validated server-side on every check-in, GPS accuracy included.',
+  },
+  {
+    icon: Clock,
+    title: 'Shift engine',
+    desc: 'Working windows, grace periods and presence thresholds that decide each day automatically.',
+  },
+  {
+    icon: CalendarCheck,
+    title: 'Leave workflow',
+    desc: 'Employees request, HR approves, and approved days land on the attendance sheet on their own.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Live analytics',
+    desc: 'Attendance trends, department headcount and status mix, exportable to CSV in one click.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Row-level security',
+    desc: 'Postgres RLS scopes every query to its owner. Employees see their data, HR sees the company.',
+  },
+]
 
 const steps = [
-  { n: "01", t: "Check in", d: "Employee takes a selfie inside the geofence." },
-  { n: "02", t: "Verify", d: "Face + location + shift window validated on-device & server." },
-  { n: "03", t: "Track", d: "Presence hours accrue; status auto-computed." },
-  { n: "04", t: "Report", d: "Live dashboards, exports & payroll-ready data." },
-];
+  { n: '01', t: 'Enroll', d: 'Each employee registers their face once, in the browser.' },
+  { n: '02', t: 'Check in', d: 'Location and face are verified before anything is written.' },
+  { n: '03', t: 'Track', d: 'Hours accrue; the daily status computes itself in Postgres.' },
+  { n: '04', t: 'Report', d: 'HR reviews live dashboards and exports payroll-ready data.' },
+]
 
 export default function Landing() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setMounted(true), []);
+  const { resolvedTheme, setTheme } = useTheme()
+  const mounted = useMounted()
+  const reduceMotion = useReducedMotion()
+
+  const isDark = resolvedTheme === 'dark'
+  const rise = reduceMotion
+    ? {}
+    : { initial: { opacity: 0, y: 18 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true } }
 
   return (
-    <main className="mx-auto max-w-7xl px-6">
-      <nav className="flex items-center justify-between py-6">
+    <main className="mx-auto max-w-7xl px-4 sm:px-6">
+      <nav className="flex items-center justify-between py-5">
         <div className="flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-300">
-            <Fingerprint size={20} />
+          <span
+            className="grid h-9 w-9 place-items-center rounded-xl"
+            style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+          >
+            <Fingerprint size={19} />
           </span>
           <span className="text-lg font-semibold">FinAtt</span>
         </div>
-        <div className="flex items-center gap-3">
-          <Link href="/login" className="muted text-sm hover:text-slate-900 dark:hover:text-white">
+
+        <div className="flex items-center gap-2">
+          <Link href="/login" className="btn btn-ghost btn-sm border-transparent">
             Sign in
           </Link>
           {mounted && (
             <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-200/50 dark:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-200 dark:hover:bg-white/10"
-              aria-label="Toggle theme"
+              onClick={() => setTheme(isDark ? 'light' : 'dark')}
+              aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+              className="touch-target muted rounded-lg transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)] cursor-pointer"
             >
-              {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+              {isDark ? <Sun size={17} /> : <Moon size={17} />}
             </button>
           )}
-          <Link
-            href="/login"
-            className="rounded-xl bg-indigo-500/10 dark:bg-white/10 px-4 py-2 text-sm font-medium text-indigo-600 dark:text-white hover:bg-indigo-500/20 dark:hover:bg-white/15 transition-colors"
-          >
-            Launch demo
+          <Link href="/register" className="btn btn-primary btn-sm">
+            Get started
           </Link>
         </div>
       </nav>
 
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="grid items-center gap-10 py-10 md:grid-cols-2 md:py-16">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.5 }}
         >
-          <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200/60 dark:border-white/10 bg-indigo-50/80 dark:bg-white/5 px-3.5 py-1.5 text-xs font-medium text-indigo-700 dark:text-indigo-300 backdrop-blur-sm">
-            <Sparkles size={13} className="text-indigo-500 dark:text-indigo-300" />
-            Enterprise Workforce Platform
+          <span
+            className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium"
+            style={{
+              borderColor: 'color-mix(in srgb, var(--primary) 25%, transparent)',
+              background: 'var(--primary-soft)',
+              color: 'var(--primary)',
+            }}
+          >
+            <Sparkles size={13} />
+            Attendance you cannot fake
           </span>
-          <h1 className="mt-5 text-5xl font-bold leading-[1.05] tracking-tight md:text-6xl">
-            Smart attendance,
+
+          <h1 className="mt-5 text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl md:text-6xl">
+            Selfie + geofence
             <br />
-            <span className="gradient-text">reimagined in 3D.</span>
+            <span className="gradient-text">attendance, verified.</span>
           </h1>
+
           <p className="muted mt-5 max-w-md text-lg">
-            Selfie + geofence attendance, a full shift engine, and real-time
-            analytics for Android, iOS &amp; web — one secure multi-tenant SaaS.
+            FinAtt checks the face, the location and the shift window before a single
+            minute is recorded — then turns it into payroll-ready reporting.
           </p>
+
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href="/login"
-              className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-3.5 font-medium text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-[1.02] transition-all"
-            >
-              Open live demo
-              <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
+            <Link href="/login" className="btn btn-primary group px-6">
+              Open the demo
+              <ArrowRight
+                size={17}
+                className="transition-transform group-hover:translate-x-0.5"
+              />
             </Link>
-            <Link
-              href="/admin"
-              className="rounded-xl border border-slate-200 dark:border-white/10 bg-white/60 dark:bg-white/5 px-5 py-3.5 font-medium hover:bg-white dark:hover:bg-white/10 backdrop-blur-sm transition-colors"
-            >
-              View admin dashboard
+            <Link href="/register" className="btn btn-ghost px-5">
+              Create an account
             </Link>
           </div>
-          <div className="mt-8 flex items-center gap-6">
+
+          <dl className="mt-8 flex flex-wrap gap-6">
             {[
-              { k: "1,284", v: "Employees" },
-              { k: "12", v: "Sites" },
-              { k: "87%", v: "Attendance" },
+              { k: 'Blink', v: 'Liveness gate' },
+              { k: 'Server-side', v: 'Face matching' },
+              { k: 'Postgres RLS', v: 'Data isolation' },
             ].map((s) => (
-              <div key={s.v} className="text-center">
-                <div className="text-2xl font-bold bg-gradient-to-br from-indigo-600 to-violet-500 dark:from-indigo-300 dark:to-cyan-300 bg-clip-text text-transparent">{s.k}</div>
-                <div className="muted text-xs mt-0.5">{s.v}</div>
+              <div key={s.v}>
+                <dt className="gradient-text text-lg font-bold">{s.k}</dt>
+                <dd className="muted mt-0.5 text-xs">{s.v}</dd>
               </div>
             ))}
-          </div>
+          </dl>
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={reduceMotion ? false : { opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.7 }}
           className="relative grid place-items-center"
         >
-          <div className="absolute h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl" />
-          <Globe size={400} />
+          <div
+            aria-hidden
+            className="absolute h-64 w-64 rounded-full blur-3xl"
+            style={{ background: 'var(--primary-soft)' }}
+          />
+          <Globe size={360} />
         </motion.div>
       </section>
 
-      <section className="py-16">
-        <h2 className="text-center text-3xl font-bold tracking-tight">
+      {/* ── Features ─────────────────────────────────────────────────────── */}
+      <section className="py-14">
+        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
           Everything a workforce needs
         </h2>
         <p className="muted mx-auto mt-3 max-w-lg text-center">
-          A commercial-grade platform covering attendance, HR, security and
-          analytics end to end.
+          Attendance, scheduling, leave and reporting — each backed by a real check, not a
+          checkbox.
         </p>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f, i) => (
-            <TiltCard key={f.title} max={8}>
-              <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.05 }}
-                className="glass lift h-full rounded-2xl p-6"
+            <TiltCard key={f.title} max={6}>
+              <motion.article
+                {...rise}
+                transition={{ duration: 0.35, delay: i * 0.05 }}
+                className="card lift h-full p-5"
               >
-                <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/10 text-indigo-600 dark:text-indigo-300 ring-1 ring-indigo-500/10">
-                  <f.icon size={22} />
+                <span
+                  className="grid h-11 w-11 place-items-center rounded-xl"
+                  style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+                >
+                  <f.icon size={21} />
                 </span>
-                <h3 className="mt-4 text-lg font-semibold">{f.title}</h3>
+                <h3 className="mt-4 font-semibold">{f.title}</h3>
                 <p className="muted mt-2 text-sm">{f.desc}</p>
-              </motion.div>
+              </motion.article>
             </TiltCard>
           ))}
         </div>
       </section>
 
-      <section className="py-16">
-        <h2 className="text-center text-3xl font-bold tracking-tight">How it runs</h2>
-        <div className="mt-10 grid gap-5 md:grid-cols-4">
+      {/* ── How it runs ──────────────────────────────────────────────────── */}
+      <section className="py-14">
+        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
+          How it runs
+        </h2>
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((s, i) => (
             <motion.div
               key={s.n}
-              initial={{ opacity: 0, y: 18 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: i * 0.08 }}
-              className="glass rounded-2xl p-6"
+              {...rise}
+              transition={{ duration: 0.35, delay: i * 0.08 }}
+              className="card p-5"
             >
-              <div className="gradient-text text-4xl font-bold">{s.n}</div>
+              <div className="gradient-text text-3xl font-bold">{s.n}</div>
               <h3 className="mt-3 font-semibold">{s.t}</h3>
               <p className="muted mt-1 text-sm">{s.d}</p>
             </motion.div>
@@ -182,28 +229,82 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="py-16">
-        <div className="glass-strong relative overflow-hidden rounded-3xl p-12 text-center">
-          <div className="absolute -left-10 -top-10 h-40 w-40 rounded-full bg-cyan-500/20 blur-3xl" />
-          <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-violet-500/20 blur-3xl" />
-          <Users className="mx-auto text-indigo-600 dark:text-indigo-300" size={32} />
-          <h2 className="mt-4 text-3xl font-bold">See the full workflow</h2>
+      {/* ── Roles ────────────────────────────────────────────────────────── */}
+      <section className="py-14">
+        <div className="grid gap-4 md:grid-cols-2">
+          {[
+            {
+              icon: Users,
+              title: 'Employee portal',
+              points: [
+                'One-tap verified check-in and check-out',
+                'Month calendar with hours and lateness',
+                'Request leave and track approvals',
+                'Edit your own profile and face template',
+              ],
+            },
+            {
+              icon: Building2,
+              title: 'HR console',
+              points: [
+                'Invite employees and assign site + shift',
+                'Approve leave; approved days auto-post',
+                'Live trends, department mix, CSV export',
+                'Manage geofences and shift rules on a map',
+              ],
+            },
+          ].map((role) => (
+            <motion.div key={role.title} {...rise} transition={{ duration: 0.4 }} className="card p-6">
+              <span
+                className="grid h-11 w-11 place-items-center rounded-xl"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+              >
+                <role.icon size={21} />
+              </span>
+              <h3 className="mt-4 text-lg font-semibold">{role.title}</h3>
+              <ul className="mt-3 space-y-2">
+                {role.points.map((p) => (
+                  <li key={p} className="muted flex items-start gap-2 text-sm">
+                    <span
+                      className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ background: 'var(--primary)' }}
+                    />
+                    {p}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── CTA ──────────────────────────────────────────────────────────── */}
+      <section className="py-14">
+        <div className="glass-strong relative overflow-hidden p-8 text-center sm:p-12">
+          <div
+            aria-hidden
+            className="absolute -left-10 -top-10 h-40 w-40 rounded-full blur-3xl"
+            style={{ background: 'var(--info-soft)' }}
+          />
+          <div
+            aria-hidden
+            className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full blur-3xl"
+            style={{ background: 'var(--accent-soft)' }}
+          />
+          <Users size={30} className="mx-auto" style={{ color: 'var(--primary)' }} />
+          <h2 className="mt-4 text-2xl font-bold sm:text-3xl">See the whole workflow</h2>
           <p className="muted mx-auto mt-2 max-w-md">
-            Jump into the live demo — admin, HR and employee dashboards, all
-            interactive.
+            Sign in as HR or as an employee — both dashboards are fully interactive.
           </p>
-          <Link
-            href="/login"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-3.5 font-medium text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-[1.02] transition-all"
-          >
-            Launch demo <ArrowRight size={18} />
+          <Link href="/login" className="btn btn-primary mt-6 px-6">
+            Launch demo <ArrowRight size={17} />
           </Link>
         </div>
       </section>
 
-      <footer className="muted border-t border-slate-200/60 dark:border-white/5 py-8 text-center text-sm">
-        <span className="opacity-70">FinAtt Enterprise</span> — Attendance &amp; Workforce Management · Demo build
+      <footer className="muted border-t border-[var(--border)] py-8 text-center text-sm">
+        FinAtt — Attendance &amp; Workforce Management
       </footer>
     </main>
-  );
+  )
 }

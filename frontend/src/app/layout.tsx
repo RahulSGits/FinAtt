@@ -1,41 +1,50 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import Providers from "./providers";
+import type { Metadata, Viewport } from 'next'
+import { Geist, Geist_Mono } from 'next/font/google'
+import './globals.css'
+import Providers from './providers'
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
+const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: "GeoSelfie — Smart Attendance & Workforce Platform",
-  description:
-    "Enterprise-grade selfie + geofence attendance and workforce management SaaS.",
-  other: {
-    "Content-Security-Policy":
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co; connect-src 'self' ws: wss: https://*.supabase.co wss://*.supabase.co; font-src 'self' data:;",
-    "X-Content-Type-Options": "nosniff",
-    "X-Frame-Options": "SAMEORIGIN",
-    "Referrer-Policy": "strict-origin-when-cross-origin",
+  title: {
+    default: 'FinAtt — Attendance & Workforce Platform',
+    template: '%s · FinAtt',
   },
-};
+  description:
+    'Face-verified, geofenced attendance with a full shift engine, leave workflow and live analytics.',
+  // Security headers live in next.config.ts — as meta tags they would be inert.
+}
 
-export const viewport = {
-  width: "device-width",
+export const viewport: Viewport = {
+  width: 'device-width',
   initialScale: 1,
+  // Zoom is left enabled; capping it at 1 would fail WCAG 1.4.4.
   maximumScale: 5,
-  viewportFit: "cover" as const,
-};
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f5f7fb' },
+    { media: '(prefers-color-scheme: dark)', color: '#070912' },
+  ],
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      // Opts route transitions out of the global `scroll-behavior: smooth`, so
+      // navigating between sections jumps to the top instead of gliding there.
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
       <body>
-        <div className="aurora" />
-        <div className="grid-overlay" />
+        <div className="aurora" aria-hidden />
+        <div className="grid-overlay" aria-hidden />
         <Providers>{children}</Providers>
       </body>
     </html>
-  );
+  )
 }

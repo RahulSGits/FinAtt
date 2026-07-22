@@ -1,44 +1,99 @@
-"use client";
+'use client'
 
-import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion } from 'motion/react'
+import { useEffect, useRef, useState } from 'react'
+import type { AttendanceStatus, LeaveStatus, Priority } from '@/lib/types'
+import {
+  hueFor,
+  initials,
+  leaveStatusMeta,
+  priorityMeta,
+  statusMeta,
+} from '@/lib/format'
 
-type Status = "present" | "absent" | "half" | "late" | "leave" | "pending" | "off";
+/* ── Motion presets ──────────────────────────────────────────────────────── */
 
-export function AnimatedNumber({
-  value,
-  decimals = 0,
-  suffix = "",
-}: {
-  value: number;
-  decimals?: number;
-  suffix?: string;
-}) {
-  const [n, setN] = useState(0);
-  const started = useRef(false);
+/** Stagger container matching the skill's "Stagger List" preset (300-450ms). */
+export const staggerContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.05 } },
+}
+
+export const staggerItem = {
+  hidden: { opacity: 0, y: 14, scale: 0.98 },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: 'spring' as const, stiffness: 300, damping: 26 },
+  },
+}
+
+/* ── Numbers ─────────────────────────────────────────────────────────────── */
+
+interface NumberProps {
+  value: number
+  decimals?: number
+  suffix?: string
+  duration?: number
+}
+
+const formatNumber = (n: number, decimals: number) =>
+  n.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
+
+/** Count-up on mount, and again whenever `value` changes. */
+export function AnimatedNumber(props: NumberProps) {
+  const reduceMotion = useReducedMotion()
+
+  // Branch to a separate component rather than short-circuiting inside the
+  // animation effect — with motion off there is no state to hold at all.
+  if (reduceMotion) {
+    return (
+      <span>
+        {formatNumber(props.value, props.decimals ?? 0)}
+        {props.suffix ?? ''}
+      </span>
+    )
+  }
+  return <CountUp {...props} />
+}
+
+function CountUp({ value, decimals = 0, suffix = '', duration = 700 }: NumberProps) {
+  const [shown, setShown] = useState(0)
+  const from = useRef(0)
+
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    const dur = 900;
-    const t0 = performance.now();
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - t0) / dur);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setN(value * eased);
-      if (p < 1) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  }, [value]);
+    const start = from.current
+    const delta = value - start
+    if (delta === 0) return
+
+    const t0 = performance.now()
+    let frame = 0
+
+    const step = (t: number) => {
+      const p = Math.min(1, (t - t0) / duration)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setShown(start + delta * eased)
+      if (p < 1) frame = requestAnimationFrame(step)
+      else from.current = value
+    }
+
+    frame = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(frame)
+  }, [value, duration])
+
   return (
     <span>
-      {n.toLocaleString(undefined, {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      })}
+      {formatNumber(shown, decimals)}
       {suffix}
     </span>
-  );
+  )
 }
+
+/* ── Cards & panels ──────────────────────────────────────────────────────── */
 
 export function StatCard({
   label,
@@ -46,127 +101,350 @@ export function StatCard({
   decimals,
   suffix,
   icon,
-  tone = "#6366f1",
+  tone = 'var(--primary)',
   sub,
-  delay = 0,
+  trend,
 }: {
-  label: string;
-  value: number;
-  decimals?: number;
-  suffix?: string;
-  icon: React.ReactNode;
-  tone?: string;
-  sub?: string;
-  delay?: number;
+  label: string
+  value: number
+  decimals?: number
+  suffix?: string
+  icon: React.ReactNode
+  tone?: string
+  sub?: string
+  trend?: { value: number; label: string }
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
-      className="glass lift rounded-2xl p-5 relative overflow-hidden group"
+      variants={staggerItem}
+      className="card lift group relative overflow-hidden p-4"
     >
-      {/* Accent glow blob */}
       <div
-        className="absolute -right-6 -top-6 h-24 w-24 rounded-full blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-500"
+        aria-hidden
+        className="absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-20 blur-2xl transition-opacity duration-500 group-hover:opacity-35"
         style={{ background: tone }}
       />
-      {/* Top gradient accent line */}
-      <div
-        className="absolute top-0 left-4 right-4 h-[2px] rounded-full opacity-60"
-        style={{ background: `linear-gradient(90deg, transparent, ${tone}, transparent)` }}
-      />
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span className="muted text-sm">{label}</span>
         <span
-          className="grid h-10 w-10 place-items-center rounded-xl transition-transform group-hover:scale-110"
-          style={{ background: `${tone}22`, color: tone }}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg transition-transform duration-200 group-hover:scale-110"
+          style={{ background: `color-mix(in srgb, ${tone} 14%, transparent)`, color: tone }}
         >
           {icon}
         </span>
       </div>
-      <div className="mt-3 text-3xl font-bold tracking-tight">
+      <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
         <AnimatedNumber value={value} decimals={decimals} suffix={suffix} />
       </div>
-      {sub && <div className="muted mt-1 text-xs">{sub}</div>}
+      <div className="mt-1 flex items-center gap-2">
+        {sub && <span className="muted text-xs">{sub}</span>}
+        {trend && (
+          <span
+            className="text-xs font-medium tabular-nums"
+            style={{ color: trend.value >= 0 ? 'var(--success)' : 'var(--danger)' }}
+          >
+            {trend.value >= 0 ? '▲' : '▼'} {Math.abs(trend.value).toFixed(0)}% {trend.label}
+          </span>
+        )}
+      </div>
     </motion.div>
-  );
+  )
 }
 
 export function Panel({
   title,
+  subtitle,
   children,
   action,
-  className = "",
+  className = '',
+  bodyClassName = 'p-4',
 }: {
-  title?: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-  className?: string;
+  title?: string
+  subtitle?: string
+  children: React.ReactNode
+  action?: React.ReactNode
+  className?: string
+  bodyClassName?: string
 }) {
   return (
-    <div className={`glass rounded-2xl p-5 ${className}`}>
+    <section className={`card overflow-hidden ${className}`}>
       {title && (
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-semibold">{title}</h3>
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+          <div className="min-w-0">
+            <h3 className="truncate text-sm font-semibold">{title}</h3>
+            {subtitle && <p className="muted mt-0.5 text-xs">{subtitle}</p>}
+          </div>
           {action}
-        </div>
+        </header>
       )}
-      {children}
-    </div>
-  );
+      <div className={bodyClassName}>{children}</div>
+    </section>
+  )
 }
 
-export function Avatar({ name, hue }: { name: string; hue: number }) {
-  const initials = name
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("");
+export function PageHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string
+  subtitle?: React.ReactNode
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
+        {subtitle && <div className="muted mt-1 text-sm">{subtitle}</div>}
+      </div>
+      {action}
+    </div>
+  )
+}
+
+/* ── Identity ────────────────────────────────────────────────────────────── */
+
+export function Avatar({
+  name,
+  size = 36,
+  src,
+}: {
+  name: string
+  size?: number
+  src?: string | null
+}) {
+  const hue = hueFor(name)
+  if (src) {
+    return (
+      // Storage-signed URLs are remote and short-lived, so next/image's
+      // optimiser would just add a broken indirection here.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        width={size}
+        height={size}
+        className="shrink-0 rounded-full object-cover ring-2 ring-[var(--border)]"
+        style={{ width: size, height: size }}
+      />
+    )
+  }
   return (
     <span
-      className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold text-white ring-2 ring-white/20"
+      aria-hidden
+      className="grid shrink-0 place-items-center rounded-full font-semibold text-white ring-2 ring-white/20"
       style={{
-        background: `linear-gradient(135deg, hsl(${hue} 70% 55%), hsl(${
-          (hue + 40) % 360
-        } 70% 45%))`,
+        width: size,
+        height: size,
+        fontSize: size * 0.36,
+        background: `linear-gradient(135deg, hsl(${hue} 62% 48%), hsl(${(hue + 45) % 360} 62% 40%))`,
       }}
     >
-      {initials}
+      {initials(name)}
     </span>
-  );
+  )
 }
 
-const statusMeta: Record<Status, { label: string; color: string }> = {
-  present: { label: "Present", color: "#34d399" },
-  half: { label: "Half day", color: "#fbbf24" },
-  absent: { label: "Absent", color: "#f87171" },
-  leave: { label: "On leave", color: "#60a5fa" },
-  off: { label: "Week off", color: "#64748b" },
-  pending: { label: "Pending", color: "#94a3b8" },
-  late: { label: "Late", color: "#fbbf24" },
-};
+/* ── Status ──────────────────────────────────────────────────────────────── */
 
-export function StatusBadge({ status }: { status: Status }) {
-  const m = statusMeta[status];
+export function StatusBadge({ status }: { status: AttendanceStatus }) {
+  const meta = statusMeta[status]
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-      style={{ background: `${m.color}1f`, color: m.color }}
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
+      style={{
+        background: `color-mix(in srgb, ${meta.color} 14%, transparent)`,
+        color: meta.color,
+      }}
     >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.color }} />
-      {m.label}
+      {/* A dot plus the word — colour alone never carries the meaning. */}
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.color }} />
+      {meta.label}
     </span>
-  );
+  )
 }
 
-export function Pill({ children, tone = "#a5b4fc" }: { children: React.ReactNode; tone?: string }) {
+export function LeaveBadge({ status }: { status: LeaveStatus }) {
+  const meta = leaveStatusMeta[status]
   return (
     <span
-      className="rounded-full px-2.5 py-1 text-xs font-medium"
-      style={{ background: `${tone}1f`, color: tone }}
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
+      style={{
+        background: `color-mix(in srgb, ${meta.color} 14%, transparent)`,
+        color: meta.color,
+      }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.color }} />
+      {meta.label}
+    </span>
+  )
+}
+
+export function PriorityBadge({ priority }: { priority: Priority }) {
+  const meta = priorityMeta[priority]
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+      style={{
+        background: `color-mix(in srgb, ${meta.color} 14%, transparent)`,
+        color: meta.color,
+      }}
+    >
+      {meta.label}
+    </span>
+  )
+}
+
+export function Pill({
+  children,
+  tone = 'var(--primary)',
+}: {
+  children: React.ReactNode
+  tone?: string
+}) {
+  return (
+    <span
+      className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
+      style={{ background: `color-mix(in srgb, ${tone} 14%, transparent)`, color: tone }}
     >
       {children}
     </span>
-  );
+  )
+}
+
+/* ── States ──────────────────────────────────────────────────────────────── */
+
+export function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: React.ReactNode
+  title: string
+  description?: string
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+      <span className="muted mb-3 opacity-40">{icon}</span>
+      <h3 className="text-sm font-semibold">{title}</h3>
+      {description && <p className="muted mt-1 max-w-sm text-sm">{description}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  )
+}
+
+export function Skeleton({ className = '' }: { className?: string }) {
+  return <div className={`skeleton ${className}`} aria-hidden />
+}
+
+export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
+  return (
+    <div className="space-y-2 p-4" aria-busy="true" aria-label="Loading">
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="flex gap-3">
+          {Array.from({ length: cols }).map((_, c) => (
+            <Skeleton key={c} className="h-8 flex-1" />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function Spinner({ size = 18 }: { size?: number }) {
+  return (
+    <span
+      role="status"
+      aria-label="Loading"
+      className="inline-block animate-spin rounded-full border-2 border-current border-t-transparent align-[-2px]"
+      style={{ width: size, height: size }}
+    />
+  )
+}
+
+/** Inline form error, rendered next to the field it belongs to. */
+export function FieldError({ children }: { children?: React.ReactNode }) {
+  if (!children) return null
+  return (
+    <p role="alert" className="mt-1 text-xs" style={{ color: 'var(--danger)' }}>
+      {children}
+    </p>
+  )
+}
+
+export function Alert({
+  tone = 'info',
+  children,
+}: {
+  tone?: 'info' | 'success' | 'warning' | 'error'
+  children: React.ReactNode
+}) {
+  const color = {
+    info: 'var(--info)',
+    success: 'var(--success)',
+    warning: 'var(--warning)',
+    error: 'var(--danger)',
+  }[tone]
+
+  return (
+    <div
+      role={tone === 'error' ? 'alert' : 'status'}
+      className="rounded-lg border px-3 py-2.5 text-sm"
+      style={{
+        background: `color-mix(in srgb, ${color} 10%, transparent)`,
+        borderColor: `color-mix(in srgb, ${color} 32%, transparent)`,
+        color,
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+/** Segmented control used for date-range and view switches. */
+export function SegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
+  label,
+}: {
+  options: { value: T; label: string }[]
+  value: T
+  onChange: (value: T) => void
+  label: string
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label={label}
+      className="inline-flex rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-0.5"
+    >
+      {options.map((opt) => {
+        const active = opt.value === value
+        return (
+          <button
+            key={opt.value}
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(opt.value)}
+            className={`relative rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+              active ? 'text-[var(--primary-fg)]' : 'muted hover:text-[var(--text)]'
+            }`}
+          >
+            {active && (
+              <motion.span
+                layoutId={`segmented-${label}`}
+                className="absolute inset-0 rounded-md"
+                style={{ background: 'var(--primary)' }}
+                transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+              />
+            )}
+            <span className="relative">{opt.label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
 }
