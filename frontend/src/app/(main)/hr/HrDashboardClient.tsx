@@ -10,8 +10,11 @@ import {
   LayoutDashboard,
   MapPin,
   Megaphone,
+  Activity,
+  LogIn,
   ScanFace,
   TrendingUp,
+  Wrench,
   UserCheck,
   Users,
 } from 'lucide-react'
@@ -21,6 +24,8 @@ import DashboardShell, {
   type UserProfile,
 } from '@/components/DashboardShell'
 import LiveClock from '@/components/LiveClock'
+import SetupGuide from '@/components/SetupGuide'
+import DiagnosticsSection, { type DiagnosticsData } from './sections/DiagnosticsSection'
 import {
   AttendanceTrend,
   DepartmentBars,
@@ -32,17 +37,20 @@ import {
   EmptyState,
   PageHeader,
   Panel,
+  Pill,
   StatCard,
   StatusBadge,
   staggerContainer,
 } from '@/components/ui'
-import { formatTime, localDateKey, relativeTime } from '@/lib/format'
+import { formatDateTime, formatTime, localDateKey, relativeTime } from '@/lib/format'
 import type {
   Announcement,
   AttendanceStatus,
   AttendanceWithEmployee,
   EmployeeWithAssignment,
   LeaveWithEmployee,
+  LoginStatsRow,
+  RecentLogin,
   Shift,
   Site,
 } from '@/lib/types'
@@ -62,6 +70,12 @@ export default function HrDashboardClient({
   sites,
   shifts,
   loadError,
+  needsSetup,
+  loginStats,
+  recentLogins,
+  statsUnavailable,
+  setupSql,
+  diagnostics,
 }: {
   userProfile: UserProfile
   employees: EmployeeWithAssignment[]
@@ -71,6 +85,12 @@ export default function HrDashboardClient({
   sites: Site[]
   shifts: Shift[]
   loadError: string | null
+  needsSetup: boolean
+  loginStats: LoginStatsRow[]
+  recentLogins: RecentLogin[]
+  statsUnavailable: boolean
+  setupSql: { migration: string | null; repair: string | null; loginTracking: string | null }
+  diagnostics: DiagnosticsData
 }) {
   const [active, setActive] = useState('overview')
 
@@ -81,6 +101,22 @@ export default function HrDashboardClient({
   )
 
   const pendingLeaves = leaves.filter((l) => l.status === 'pending').length
+
+  /** Portal-wide sign-in counters, summed across roles. */
+  const portal = useMemo(() => {
+    const sum = (key: keyof LoginStatsRow) =>
+      loginStats.reduce((acc, row) => acc + Number(row[key] ?? 0), 0)
+    const accounts = sum('total')
+    const ever = sum('ever_logged_in')
+    return {
+      accounts,
+      everLoggedIn: ever,
+      neverLoggedIn: sum('never_logged_in'),
+      today: sum('active_today'),
+      week: sum('active_7d'),
+      adoption: accounts === 0 ? 0 : (ever / accounts) * 100,
+    }
+  }, [loginStats])
 
   const stats = useMemo(() => {
     const activeStaff = employees.filter((e) => e.status === 'active').length
@@ -172,7 +208,23 @@ export default function HrDashboardClient({
     { key: 'announcements', label: 'Announcements', icon: Megaphone },
     { key: 'sites', label: 'Work sites', icon: MapPin },
     { key: 'shifts', label: 'Shifts', icon: Clock },
+    { key: 'signins', label: 'Sign-in activity', icon: Activity },
+    { key: 'diagnostics', label: 'Diagnostics', icon: Wrench },
   ]
+
+  if (needsSetup) {
+    return (
+      <DashboardShell
+        nav={nav}
+        active={active}
+        onSelect={setActive}
+        userProfile={userProfile}
+        notifications={[]}
+      >
+        <SetupGuide />
+      </DashboardShell>
+    )
+  }
 
   return (
     <DashboardShell
@@ -184,10 +236,7 @@ export default function HrDashboardClient({
     >
       {loadError && (
         <div className="mb-4">
-          <Alert tone="error">
-            Data could not be loaded: {loadError}. If this mentions infinite recursion,
-            the RLS migration has not been applied to your Supabase project yet.
-          </Alert>
+          <Alert tone="error">Data could not be loaded: {loadError}</Alert>
         </div>
       )}
 
@@ -230,6 +279,20 @@ export default function HrDashboardClient({
               icon={<ScanFace size={17} />}
               tone="var(--info)"
               sub={`of ${stats.headcount} employees`}
+            />
+            <StatCard
+              label="Members signed in"
+              value={portal.everLoggedIn}
+              icon={<LogIn size={17} />}
+              tone="#7c3aed"
+              sub={`of ${portal.accounts} portal accounts`}
+            />
+            <StatCard
+              label="Signed in today"
+              value={portal.today}
+              icon={<Activity size={17} />}
+              tone="var(--chart-2)"
+              sub={`${portal.week} in the last 7 days`}
             />
           </motion.div>
 
@@ -374,6 +437,82 @@ export default function HrDashboardClient({
       {active === 'announcements' && <AnnouncementsSection announcements={announcements} />}
       {active === 'sites' && <SitesSection sites={sites} />}
       {active === 'shifts' && <ShiftsSection shifts={shifts} />}
+
+      {active === 'signins' && (
+        <>
+          <PageHeader
+            title="Sign-in activity"
+            subtitle={`${portal.everLoggedIn} of ${portal.accounts} accounts have signed in`}
+          />
+
+          {statsUnavailable && (
+            <div className="mb-4">
+              <Alert tone="warning">
+                Sign-in tracking isn&apos;t installed yet. Run the login-tracking SQL from
+                the Diagnostics tab — counts stay at zero until then.
+              </Alert>
+            </div>
+          )}
+
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="Portal accounts" value={portal.accounts} icon={<Users size={17} />} tone="var(--primary)" />
+            <StatCard label="Ever signed in" value={portal.everLoggedIn} icon={<LogIn size={17} />} tone="#7c3aed" />
+            <StatCard label="Never signed in" value={portal.neverLoggedIn} icon={<Users size={17} />} tone="var(--warning)" />
+            <StatCard label="Adoption" value={portal.adoption} decimals={0} suffix="%" icon={<TrendingUp size={17} />} tone="var(--accent)" />
+          </div>
+
+          <Panel title="Recent sign-ins" bodyClassName="p-0">
+            {recentLogins.length === 0 ? (
+              <EmptyState
+                icon={<Activity size={30} />}
+                title="No sign-ins recorded"
+                description="Sign-ins are counted from the moment the tracking SQL is applied."
+              />
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Member</th>
+                      <th>Role</th>
+                      <th>Last sign-in</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentLogins.map((row) => (
+                      <tr key={row.id}>
+                        <td>
+                          <div className="flex items-center gap-2.5">
+                            <Avatar name={row.full_name || row.email} size={30} />
+                            <div className="min-w-0">
+                              <div className="truncate font-medium">{row.full_name || '—'}</div>
+                              <div className="muted truncate text-xs">{row.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <Pill tone={row.role === 'hr' ? '#2563eb' : '#059669'}>{row.role}</Pill>
+                        </td>
+                        <td className="whitespace-nowrap">
+                          {formatDateTime(row.last_login_at)}
+                          <div className="muted text-xs">{relativeTime(row.last_login_at)}</div>
+                        </td>
+                        <td className="tabular-nums">{row.login_count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Panel>
+        </>
+      )}
+
+      {active === 'diagnostics' && (
+        <DiagnosticsSection sql={setupSql} diagnostics={diagnostics} />
+      )}
+
     </DashboardShell>
   )
 }

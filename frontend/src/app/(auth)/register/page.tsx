@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { ArrowRight, Eye, EyeOff, Fingerprint, MailCheck } from 'lucide-react'
 import { register } from '../actions'
 import { Alert, Spinner } from '@/components/ui'
+import DepartmentSelect from '@/components/DepartmentSelect'
+import { DESIGNATIONS } from '@/lib/departments'
 
 const MIN_PASSWORD_LENGTH = 8
 
@@ -149,12 +151,8 @@ export default function RegisterPage() {
                 <label className="label" htmlFor="department">
                   Department
                 </label>
-                <input
-                  id="department"
-                  name="department"
-                  placeholder="Engineering"
-                  className="field"
-                />
+                {/* No roster to merge from at signup, so presets only. */}
+                <DepartmentSelect id="department" />
               </div>
 
               <div>
@@ -164,9 +162,15 @@ export default function RegisterPage() {
                 <input
                   id="designation"
                   name="designation"
-                  placeholder="Software Engineer"
+                  list="signup-designations"
+                  placeholder="Start typing or pick one"
                   className="field"
                 />
+                <datalist id="signup-designations">
+                  {DESIGNATIONS.map((d) => (
+                    <option key={d} value={d} />
+                  ))}
+                </datalist>
               </div>
 
               <div>
@@ -191,7 +195,7 @@ export default function RegisterPage() {
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="muted absolute right-1 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg transition-colors hover:text-[var(--text)] cursor-pointer"
+                    className="icon-btn absolute right-1 top-1/2 -translate-y-1/2"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>

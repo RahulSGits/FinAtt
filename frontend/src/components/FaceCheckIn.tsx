@@ -3,21 +3,24 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  Building2,
   Camera,
   CheckCircle2,
   Eye,
   MapPin,
+  Home,
   ScanFace,
   ShieldCheck,
   TriangleAlert,
 } from 'lucide-react'
 import {
   analyseFrame,
-  averageDescriptors,
   captureFrame,
+  ENROLL_POSES,
   LivenessTracker,
   loadFaceModels,
   matchDescriptor,
+  POSE_PROMPT,
 } from '@/lib/face'
 import {
   checkGeofence,
@@ -26,7 +29,8 @@ import {
   GeolocationFailure,
   type Coords,
 } from '@/lib/geo'
-import type { Site } from '@/lib/types'
+import { enforcesGeofence, workModeMeta } from '@/lib/types'
+import type { Shift, Site, WorkMode } from '@/lib/types'
 import { Alert, Spinner } from './ui'
 
 type Phase =
@@ -54,8 +58,6 @@ const PHASE_COPY: Record<Phase, string> = {
   error: 'Something needs your attention',
 }
 
-/** How many good frames enrollment averages over. */
-const ENROLL_SAMPLES = 5
 /** Detector cadence — fast enough to catch a blink, light enough for laptops. */
 const FRAME_INTERVAL_MS = 180
 /** Give up rather than hold the camera open forever. */
@@ -64,10 +66,13 @@ const SCAN_TIMEOUT_MS = 60_000
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export interface CheckInPayload {
+  /** One template per captured pose at enrollment; a single one at check-in. */
+  templates?: number[][]
   descriptor: number[]
   selfie: Blob | null
   coords: Coords
   liveness: 'blink'
+  workMode: WorkMode
 }
 
 class Aborted extends Error {}
@@ -75,14 +80,19 @@ class Aborted extends Error {}
 export default function FaceCheckIn({
   mode,
   site,
+  shift,
+  workModes = ['on_site'],
   enrolledDescriptor,
   onSubmit,
   onCancel,
 }: {
-  mode: 'enroll' | 'verify'
+  mode: 'enroll' | 'verify' | 'checkout'
   /** Required for `verify`; the fence is checked before the camera opens. */
   site?: Site | null
-  enrolledDescriptor?: number[] | null
+  shift?: Shift | null
+  /** Modes the employee may pick. One entry hides the selector. */
+  workModes?: WorkMode[]
+  enrolledDescriptor?: number[] | number[][] | null
   onSubmit: (payload: CheckInPayload) => Promise<{ ok: boolean; error?: string }>
   onCancel: () => void
 }) {
@@ -107,6 +117,11 @@ export default function FaceCheckIn({
   const [samplesTaken, setSamplesTaken] = useState(0)
   const [blinked, setBlinked] = useState(false)
   const [faceVisible, setFaceVisible] = useState(false)
+  const [workMode, setWorkMode] = useState<WorkMode>(workModes[0] ?? 'on_site')
+
+  // Only an on-site day at a fenced office needs a position check.
+  const needsLocation =
+    mode === 'verify' && workMode === 'on_site' && Boolean(site && enforcesGeofence(site, shift))
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -133,6 +148,10 @@ export default function FaceCheckIn({
 
     const liveness = new LivenessTracker()
     const samples: Float32Array[] = []
+    // One template per pose, so check-in can match the closest angle rather
+    // than an average that fits none of them well.
+    const captured: number[][] = []
+    let wantedPose = 0
 
     /** Bail out of the run if the user cancelled or the dialog closed. */
     const checkAborted = () => {
@@ -143,20 +162,24 @@ export default function FaceCheckIn({
       /* 1. Location — no point opening the camera if they are off site. */
       let position: Coords | null = null
 
-      if (mode === 'verify') {
+      // Skip the location step entirely when it would not be acted on, rather
+      // than prompting for a permission we are going to ignore.
+      if (needsLocation && site) {
         setPhase('locating')
         position = await getCurrentPosition()
         checkAborted()
         setCoords(position)
 
-        if (site) {
-          const fence = checkGeofence(position, site)
-          setDistance(fence.distance)
-          if (!fence.inside) {
-            throw new Error(
-              `You are ${formatDistance(fence.distance)} from ${site.name}. Move within the ${site.radius_m} m check-in zone and try again.`,
-            )
-          }
+        const fence = checkGeofence(position, {
+          latitude: site.latitude!,
+          longitude: site.longitude!,
+          radius_m: site.radius_m,
+        })
+        setDistance(fence.distance)
+        if (!fence.inside) {
+          throw new Error(
+            `You are ${formatDistance(fence.distance)} from ${site.name}. Move within the ${site.radius_m} m check-in zone and try again.`,
+          )
         }
       }
 
@@ -202,7 +225,10 @@ export default function FaceCheckIn({
 
         let frame: Awaited<ReturnType<typeof analyseFrame>> = null
         try {
-          frame = await analyseFrame(video)
+          // Cheap pass first. The descriptor is only requested once the face is
+          // present and large enough, so the expensive model runs rarely.
+          const probe = await analyseFrame(video, false)
+          frame = probe && probe.box.width >= 110 ? await analyseFrame(video, true) : probe
         } catch {
           // A dropped frame is not fatal — keep looping.
         }
@@ -224,30 +250,56 @@ export default function FaceCheckIn({
 
         setHint(null)
 
-        /* Enrollment: gather several frames and average them. */
+        /* Enrollment: walk the four poses, one template each. */
         if (mode === 'enroll') {
-          samples.push(frame.descriptor)
-          setSamplesTaken(samples.length)
-          setProgress(Math.min(1, samples.length / ENROLL_SAMPLES))
+          const target = ENROLL_POSES[wantedPose]
 
-          if (samples.length < ENROLL_SAMPLES) {
+          if (frame.pose !== target) {
+            setHint(POSE_PROMPT[target])
             await sleep(FRAME_INTERVAL_MS)
+            continue
+          }
+
+          if (!frame.descriptor) {
+            setHint('Hold that position…')
+            await sleep(FRAME_INTERVAL_MS)
+            continue
+          }
+
+          captured.push(Array.from(frame.descriptor))
+          samples.push(frame.descriptor)
+          wantedPose += 1
+          setSamplesTaken(captured.length)
+          setProgress(captured.length / ENROLL_POSES.length)
+
+          if (wantedPose < ENROLL_POSES.length) {
+            setHint(POSE_PROMPT[ENROLL_POSES[wantedPose]])
+            // Brief pause so they can move before the next pose is sampled.
+            await sleep(600)
             continue
           }
 
           setPhase('capturing')
           const selfie = await captureFrame(video)
           await finish({
-            descriptor: averageDescriptors(samples),
+            templates: captured,
+            descriptor: captured[0],
             selfie,
             coords: position ?? ZERO_COORDS,
             liveness: 'blink',
+            workMode,
           })
           return
         }
 
-        /* Verification: match the enrolled template, then require a blink. */
-        if (enrolledDescriptor && enrolledDescriptor.length === 128) {
+        /* verify and checkout both: match the template, then require a blink. */
+        if (!frame.descriptor) {
+          setHint('Hold still while we read your face…')
+          await sleep(FRAME_INTERVAL_MS)
+          continue
+        }
+
+        if (enrolledDescriptor && enrolledDescriptor.length > 0) {
           const result = matchDescriptor(frame.descriptor, enrolledDescriptor)
           if (!result.matched) {
             setHint('Face not recognised yet — face the camera in even lighting.')
@@ -257,7 +309,7 @@ export default function FaceCheckIn({
         }
 
         setPhase('blink')
-        const didBlink = liveness.push(frame.ear)
+        const didBlink = liveness.push(frame.blink)
         setBlinked(didBlink)
         setProgress(didBlink ? 1 : 0.5)
 
@@ -273,6 +325,7 @@ export default function FaceCheckIn({
           selfie,
           coords: position ?? ZERO_COORDS,
           liveness: 'blink',
+          workMode,
         })
         return
       }
@@ -298,7 +351,7 @@ export default function FaceCheckIn({
         setPhase('error')
       }
     }
-  }, [mode, site, enrolledDescriptor, stopCamera])
+  }, [mode, site, needsLocation, workMode, enrolledDescriptor, stopCamera])
 
   const cancel = useCallback(() => {
     abortedRef.current = true
@@ -311,12 +364,62 @@ export default function FaceCheckIn({
 
   return (
     <div className="space-y-4">
+      {mode === 'verify' && workModes.length > 1 && (
+        <fieldset disabled={busy}>
+          <legend className="label">Where are you working today?</legend>
+          <div className="grid grid-cols-2 gap-2">
+            {workModes.map((option) => {
+              const meta = workModeMeta[option]
+              const Icon = option === 'remote' ? Home : Building2
+              const active = workMode === option
+              return (
+                <label
+                  key={option}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border p-2.5 text-sm transition-colors"
+                  style={{
+                    borderColor: active ? meta.color : 'var(--border)',
+                    background: active
+                      ? `color-mix(in srgb, ${meta.color} 10%, transparent)`
+                      : 'transparent',
+                    opacity: busy ? 0.6 : 1,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="checkinWorkMode"
+                    value={option}
+                    checked={active}
+                    onChange={() => setWorkMode(option)}
+                    className="sr-only"
+                  />
+                  <Icon
+                    size={15}
+                    className="shrink-0"
+                    style={{ color: active ? meta.color : 'var(--text-muted)' }}
+                  />
+                  <span
+                    className="font-medium"
+                    style={{ color: active ? meta.color : 'var(--text)' }}
+                  >
+                    {meta.label}
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+        </fieldset>
+      )}
+
       {mode === 'verify' && site && (
         <div className="flex items-center gap-2 rounded-lg bg-[var(--surface-2)] px-3 py-2 text-sm">
           <MapPin size={15} className="shrink-0" style={{ color: 'var(--primary)' }} />
           <span className="min-w-0 flex-1 truncate">{site.name}</span>
           <span className="muted shrink-0 text-xs tabular-nums">
-            {distance === null ? `${site.radius_m} m zone` : formatDistance(distance)}
+            {!needsLocation
+              ? workModeMeta[workMode].label
+              : distance === null
+                ? `${site.radius_m} m zone`
+                : formatDistance(distance)}
           </span>
         </div>
       )}
@@ -362,7 +465,11 @@ export default function FaceCheckIn({
                 >
                   <CheckCircle2 size={48} style={{ color: 'var(--success)' }} />
                   <p className="font-semibold">
-                    {mode === 'enroll' ? 'Face enrolled' : 'Checked in'}
+                    {mode === 'enroll'
+                      ? 'Face registered'
+                      : mode === 'checkout'
+                        ? 'Checked out'
+                        : 'Checked in'}
                   </p>
                 </motion.div>
               ) : phase === 'error' ? (
@@ -377,8 +484,12 @@ export default function FaceCheckIn({
                   <ScanFace size={44} className="muted opacity-40" />
                   <p className="muted text-sm">
                     {mode === 'enroll'
-                      ? 'We will capture a few frames to build your face template.'
-                      : 'Your face and location are both checked before attendance is recorded.'}
+                      ? 'We will capture a few frames to build your face template. You only get to register once.'
+                      : mode === 'checkout'
+                        ? 'Verify your face to clock off. This is the same check as check-in.'
+                        : needsLocation
+                          ? 'Your face and location are both checked before attendance is recorded.'
+                          : 'Your face is verified before attendance is recorded. This mode is not location-restricted.'}
                   </p>
                 </div>
               )}
@@ -413,7 +524,7 @@ export default function FaceCheckIn({
             <span className="muted">{PHASE_COPY[phase]}</span>
             {mode === 'enroll' && phase === 'scanning' && (
               <span className="muted text-xs tabular-nums">
-                {samplesTaken}/{ENROLL_SAMPLES}
+                {samplesTaken}/{ENROLL_POSES.length} poses
               </span>
             )}
           </div>

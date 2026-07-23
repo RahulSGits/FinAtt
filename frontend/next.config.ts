@@ -13,12 +13,14 @@ const securityHeaders = [
       "default-src 'self'",
       // Next's inline bootstrap needs 'unsafe-inline'; tfjs (behind face-api)
       // compiles kernels via `new Function`, which needs 'unsafe-eval'.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // maps.googleapis.com is required by the optional Google Maps site view;
+      // without it the loader retries forever with "Failed to load Google Maps script".
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com",
       "style-src 'self' 'unsafe-inline'",
       // blob: covers camera frame captures; the tile host serves the site map.
-      "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.supabase.co",
-      "font-src 'self' data:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+      "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.supabase.co https://maps.googleapis.com https://maps.gstatic.com https://*.googleapis.com https://*.ggpht.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://maps.googleapis.com",
       "worker-src 'self' blob:",
       "media-src 'self' blob:",
       "frame-ancestors 'none'",

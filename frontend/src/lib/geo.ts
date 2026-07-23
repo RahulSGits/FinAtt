@@ -135,3 +135,86 @@ export function formatDistance(metres: number): string {
     ? `${Math.round(metres)} m`
     : `${(metres / 1000).toFixed(2)} km`
 }
+
+
+/* ── Google Maps links ────────────────────────────────────────────────────── */
+
+export interface ParsedMapsLink {
+  latitude: number
+  longitude: number
+  /** Name pulled from a /place/ URL, when the link carries one. */
+  label?: string
+}
+
+/**
+ * Pull coordinates out of a pasted Google Maps URL.
+ *
+ * Handles every long-form shape Google produces:
+ *   /maps/@28.5951,77.3156,17z
+ *   /maps/place/Name/@28.5951,77.3156,17z/...
+ *   /maps/search/?api=1&query=28.5951,77.3156
+ *   ?q=28.5951,77.3156   |   ?ll=...   |   !3d28.5951!4d77.3156
+ *
+ * Short links (maps.app.goo.gl, goo.gl/maps) carry no coordinates at all — they
+ * have to be followed server-side first, which /api/geocode?url= does.
+ */
+export function parseGoogleMapsUrl(input: string): ParsedMapsLink | null {
+  const raw = input.trim()
+  if (!raw) return null
+
+  const valid = (lat: number, lng: number) =>
+    Number.isFinite(lat) && Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 && Math.abs(lng) <= 180 &&
+    !(lat === 0 && lng === 0)
+
+  // `!3d<lat>!4d<lng>` is the most precise: it is the actual place pin, whereas
+  // `@lat,lng` is only the map viewport centre.
+  const bang = raw.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/)
+  if (bang) {
+    const lat = Number(bang[1])
+    const lng = Number(bang[2])
+    if (valid(lat, lng)) return { latitude: lat, longitude: lng, label: placeName(raw) }
+  }
+
+  const at = raw.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/)
+  if (at) {
+    const lat = Number(at[1])
+    const lng = Number(at[2])
+    if (valid(lat, lng)) return { latitude: lat, longitude: lng, label: placeName(raw) }
+  }
+
+  // ?q= / ?query= / ?ll= / ?center=
+  const param = raw.match(
+    /[?&](?:q|query|ll|center|destination)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
+  )
+  if (param) {
+    const lat = Number(param[1])
+    const lng = Number(param[2])
+    if (valid(lat, lng)) return { latitude: lat, longitude: lng, label: placeName(raw) }
+  }
+
+  // Bare "lat, lng" pasted on its own.
+  const bare = raw.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/)
+  if (bare) {
+    const lat = Number(bare[1])
+    const lng = Number(bare[2])
+    if (valid(lat, lng)) return { latitude: lat, longitude: lng }
+  }
+
+  return null
+}
+
+function placeName(url: string): string | undefined {
+  const m = url.match(/\/maps\/place\/([^/@]+)/)
+  if (!m) return undefined
+  try {
+    return decodeURIComponent(m[1].replace(/\+/g, ' ')).trim() || undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Short links need a redirect follow, which only the server can do. */
+export function isShortMapsLink(input: string): boolean {
+  return /(maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(input)
+}

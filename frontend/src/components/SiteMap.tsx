@@ -2,7 +2,7 @@
 
 import 'leaflet/dist/leaflet.css'
 import { Circle, CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
-import { useEffect } from 'react'
+import { useEffect, useId } from 'react'
 
 /**
  * Geofence editor. Click the map to move the centre; the shaded circle is the
@@ -19,18 +19,30 @@ export default function SiteMap({
   interactive = true,
   height = 280,
 }: {
-  latitude: number
-  longitude: number
+  /** Null for a remote site, which has no fixed place to draw. */
+  latitude: number | null
+  longitude: number | null
   radius: number
   onMove?: (lat: number, lng: number) => void
   interactive?: boolean
   height?: number
 }) {
-  const valid = Number.isFinite(latitude) && Number.isFinite(longitude)
+  // Leaflet binds an instance to the DOM node and refuses to re-init it. React
+  // can reuse that node across remounts (Fast Refresh, a modal reopening),
+  // which throws "Map container is being reused by another instance". A unique
+  // key forces a fresh node each mount.
+  const instanceId = useId()
+
+  const valid =
+    latitude !== null &&
+    longitude !== null &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude)
   const center: [number, number] = valid ? [latitude, longitude] : [12.9756, 77.6068]
 
   return (
     <MapContainer
+      key={instanceId}
       center={center}
       zoom={16}
       scrollWheelZoom={interactive}

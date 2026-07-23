@@ -61,7 +61,12 @@ export default function DashboardShell({
     return () => mq.removeEventListener('change', onChange)
   }, [])
 
-  const roleLabel = userProfile.role === 'hr' ? 'HR Console' : 'Employee Portal'
+  const roleLabel =
+    userProfile.role === 'admin'
+      ? 'Admin Console'
+      : userProfile.role === 'hr'
+        ? 'HR Console'
+        : 'Employee Portal'
   const isDark = resolvedTheme === 'dark'
 
   async function handleLogout() {

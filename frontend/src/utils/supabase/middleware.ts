@@ -72,9 +72,10 @@ export async function updateSession(request: NextRequest) {
     return redirectTo(passwordCreated === false ? '/set-password' : home)
   }
 
-  // Keep each role inside its own console.
-  if (path.startsWith('/hr') && role !== 'hr') return redirectTo('/employee')
-  if (path.startsWith('/employee') && role !== 'employee') return redirectTo('/hr')
+  // Keep each role inside its own console. HR is the top role and owns
+  // diagnostics; employees only ever see their own portal.
+  if (path.startsWith('/hr') && role !== 'hr') return redirectTo(home)
+  if (path.startsWith('/employee') && role !== 'employee') return redirectTo(home)
 
   return supabaseResponse
 }

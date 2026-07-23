@@ -58,7 +58,7 @@ export default function SetPasswordForm() {
             type="button"
             onClick={() => setShow((v) => !v)}
             aria-label={show ? 'Hide password' : 'Show password'}
-            className="muted absolute right-1 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg transition-colors hover:text-[var(--text)] cursor-pointer"
+            className="icon-btn absolute right-1 top-1/2 -translate-y-1/2"
           >
             {show ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>

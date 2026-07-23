@@ -73,15 +73,40 @@ grant execute on function public.current_employee_id() to authenticated, service
 -- ---------------------------------------------------------------------------
 -- 2. New tables: sites (geofences) and shifts
 -- ---------------------------------------------------------------------------
+-- How a site is worked. Only `office` enforces the geofence: you cannot draw a
+-- radius around "home", and requiring one would lock remote staff out entirely.
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'site_kind') then
+    create type public.site_kind as enum ('office', 'remote', 'hybrid');
+  end if;
+end $$;
+
 create table if not exists public.sites (
   id uuid default gen_random_uuid() primary key,
   name text not null,
   address text,
-  latitude double precision not null,
-  longitude double precision not null,
+  kind public.site_kind not null default 'office',
+  -- Nullable: a remote site has no coordinates to check against.
+  latitude double precision,
+  longitude double precision,
   radius_m integer not null default 150 check (radius_m between 25 and 5000),
   is_active boolean not null default true,
   created_at timestamptz not null default now()
+);
+
+-- Existing installs predate `kind`.
+alter table public.sites
+  add column if not exists kind public.site_kind not null default 'office';
+
+-- Older installs declared these NOT NULL, which a remote site cannot satisfy.
+alter table public.sites alter column latitude  drop not null;
+alter table public.sites alter column longitude drop not null;
+
+-- An office needs coordinates; remote and hybrid do not.
+alter table public.sites drop constraint if exists sites_office_needs_coords;
+alter table public.sites add constraint sites_office_needs_coords check (
+  kind <> 'office' or (latitude is not null and longitude is not null)
 );
 
 create table if not exists public.shifts (
@@ -110,6 +135,30 @@ alter table public.employees
   -- 128-float face-api descriptor captured at enrollment.
   add column if not exists face_descriptor jsonb,
   add column if not exists face_enrolled_at timestamptz;
+
+-- Let HR create an employee row before that person has an account.
+--
+-- Inviting a user requires the service_role key, which is an operational
+-- dependency (and is currently invalid on this project). Making user_id
+-- nullable lets HR import a roster immediately; the row is adopted by
+-- handle_new_profile() when its owner signs up with the same email.
+alter table public.employees alter column user_id drop not null;
+
+-- Emails must be unique to adopt a row unambiguously at signup. Case-insensitive
+-- because "A@x.com" and "a@x.com" are the same mailbox.
+--
+-- Guarded: if the table already holds duplicate emails the index cannot be
+-- built, and an unguarded failure would abort the rest of this migration. The
+-- duplicates are reported instead so they can be merged by hand.
+do $$
+begin
+  create unique index if not exists employees_email_lower_key
+    on public.employees (lower(email));
+exception
+  when unique_violation or duplicate_table then
+    raise warning
+      'Skipped employees_email_lower_key: duplicate emails exist. Run: select lower(email), count(*) from public.employees group by 1 having count(*) > 1;';
+end $$;
 
 alter table public.attendance
   add column if not exists site_id uuid references public.sites(id) on delete set null,
@@ -234,7 +283,29 @@ as $$
 declare
   default_site  uuid;
   default_shift uuid;
+  adopted       uuid;
 begin
+  -- HR accounts manage staff; they are not themselves on the roster.
+  if new.role = 'hr'::public.app_role then
+    return new;
+  end if;
+
+  -- If HR already imported this person by email, adopt that row rather than
+  -- creating a duplicate. This is what makes the CSV import work without ever
+  -- touching the auth admin API.
+  update public.employees
+     set user_id   = new.id,
+         full_name = coalesce(nullif(new.full_name, ''), full_name),
+         phone     = coalesce(phone, new.phone),
+         status    = 'active'
+   where user_id is null
+     and lower(email) = lower(new.email)
+  returning id into adopted;
+
+  if adopted is not null then
+    return new;
+  end if;
+
   select id into default_site  from public.sites  where is_active order by created_at limit 1;
   select id into default_shift from public.shifts where is_active order by created_at limit 1;
 
@@ -405,36 +476,51 @@ create policy "shifts_all_hr" on public.shifts
 -- ---------------------------------------------------------------------------
 -- 7. Private storage bucket for check-in selfies
 -- ---------------------------------------------------------------------------
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('selfies', 'selfies', false, 2097152, array['image/jpeg', 'image/png', 'image/webp'])
-on conflict (id) do update
-  set file_size_limit    = excluded.file_size_limit,
-      allowed_mime_types = excluded.allowed_mime_types;
+-- Wrapped: policies on storage.objects need ownership of that table, which some
+-- Supabase plans withhold from the SQL editor role. A permission error here must
+-- not roll back the schema work above — check-in selfies are an audit nicety,
+-- everything else is load-bearing.
+do $$
+begin
+  insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('selfies', 'selfies', false, 2097152, array['image/jpeg', 'image/png', 'image/webp'])
+  on conflict (id) do update
+    set file_size_limit    = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
 
-drop policy if exists "selfies_insert_own" on storage.objects;
-drop policy if exists "selfies_select_own" on storage.objects;
-drop policy if exists "selfies_select_hr"  on storage.objects;
+  drop policy if exists "selfies_insert_own" on storage.objects;
+  drop policy if exists "selfies_select_own" on storage.objects;
+  drop policy if exists "selfies_select_hr"  on storage.objects;
 
--- Objects are keyed as `<auth.uid()>/<date>.jpg`, so the first path segment is
--- the owner and the check below scopes each user to their own folder.
-create policy "selfies_insert_own" on storage.objects
-  for insert to authenticated
-  with check (bucket_id = 'selfies' and (storage.foldername(name))[1] = auth.uid()::text);
+  -- Objects are keyed as `<auth.uid()>/<date>.jpg`, so the first path segment is
+  -- the owner and the check below scopes each user to their own folder.
+  create policy "selfies_insert_own" on storage.objects
+    for insert to authenticated
+    with check (bucket_id = 'selfies' and (storage.foldername(name))[1] = auth.uid()::text);
 
-create policy "selfies_select_own" on storage.objects
-  for select to authenticated
-  using (bucket_id = 'selfies' and (storage.foldername(name))[1] = auth.uid()::text);
+  create policy "selfies_select_own" on storage.objects
+    for select to authenticated
+    using (bucket_id = 'selfies' and (storage.foldername(name))[1] = auth.uid()::text);
 
-create policy "selfies_select_hr" on storage.objects
-  for select to authenticated
-  using (bucket_id = 'selfies' and public.is_hr());
+  create policy "selfies_select_hr" on storage.objects
+    for select to authenticated
+    using (bucket_id = 'selfies' and public.is_hr());
+exception
+  when insufficient_privilege then
+    raise warning
+      'Skipped the selfies storage bucket/policies (insufficient privilege). Create the private bucket "selfies" in the Storage UI instead; attendance still works, selfies just are not stored.';
+end $$;
 
 
 -- ---------------------------------------------------------------------------
 -- 8. Demo seed — one site and three shifts, only if empty
 -- ---------------------------------------------------------------------------
-insert into public.sites (name, address, latitude, longitude, radius_m)
-select 'Head Office', 'MG Road, Bengaluru, Karnataka 560001', 12.9756, 77.6068, 200
+insert into public.sites (name, address, kind, latitude, longitude, radius_m)
+select * from (values
+  ('Head Office',   'MG Road, Bengaluru, Karnataka 560001', 'office'::public.site_kind, 12.9756::double precision, 77.6068::double precision, 200),
+  ('Work From Home', null,                                  'remote'::public.site_kind, null::double precision,    null::double precision,     150),
+  ('Hybrid — Office + Home', 'MG Road, Bengaluru',          'hybrid'::public.site_kind, 12.9756::double precision, 77.6068::double precision, 200)
+) as v(name, address, kind, latitude, longitude, radius_m)
 where not exists (select 1 from public.sites);
 
 insert into public.shifts (name, start_time, end_time, grace_minutes, full_day_minutes, half_day_minutes, work_days)

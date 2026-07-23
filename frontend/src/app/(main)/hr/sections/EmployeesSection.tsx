@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Download, Pencil, ScanFace, Search, UserPlus, Users } from 'lucide-react'
+import { Check, Copy, Download, KeyRound, Mail, Search, Upload, UserPlus, Users } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/Toast'
@@ -16,7 +16,11 @@ import {
 } from '@/components/ui'
 import { downloadCsv, formatDate, localDateKey, toCsv } from '@/lib/format'
 import type { EmployeeWithAssignment, Shift, Site } from '@/lib/types'
-import { createEmployee, resetFaceEnrollment, updateEmployee } from '../actions'
+import CsvImport, { type ParsedEmployee } from '@/components/CsvImport'
+import DepartmentSelect from '@/components/DepartmentSelect'
+import EmployeeRowActions, { FaceCell } from './EmployeeRowActions'
+import { DESIGNATIONS } from '@/lib/departments'
+import { createEmployee, createEmployeeLogin, importEmployees, sendInvites, updateEmployee } from '../actions'
 
 export default function EmployeesSection({
   employees,
@@ -30,7 +34,18 @@ export default function EmployeesSection({
   const [query, setQuery] = useState('')
   const [department, setDepartment] = useState('all')
   const [adding, setAdding] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [editing, setEditing] = useState<EmployeeWithAssignment | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [inviting, setInviting] = useState(false)
+  const [makingLogin, setMakingLogin] = useState<EmployeeWithAssignment | null>(null)
+  const [credentials, setCredentials] = useState<{
+    name: string
+    email: string
+    password: string
+    needsConfirmation: boolean
+  } | null>(null)
+  const [creatingLogin, setCreatingLogin] = useState(false)
   const toast = useToast()
   const router = useRouter()
 
@@ -77,16 +92,58 @@ export default function EmployeesSection({
     toast.success(`Exported ${filtered.length} employees.`)
   }
 
-  async function handleResetFace(employee: EmployeeWithAssignment) {
-    const fd = new FormData()
-    fd.set('id', employee.id)
-    const res = await resetFaceEnrollment(fd)
+  async function handleImport(rows: ParsedEmployee[]) {
+    const res = await importEmployees(rows)
     if (res.ok) {
-      toast.success(`${employee.full_name} can now re-enroll their face.`)
+      router.refresh()
+      return { ok: true, created: res.data.created, skipped: res.data.skipped }
+    }
+    return { ok: false, error: res.error }
+  }
+
+  async function handleInvite() {
+    setInviting(true)
+    const res = await sendInvites([...selected])
+
+    if (res.ok) {
+      const { sent, failed } = res.data
+      if (sent > 0) toast.success(`Invite email sent to ${sent} employee(s).`)
+      if (failed.length > 0) {
+        toast.error(`${failed.length} failed: ${failed[0].reason}`)
+      }
+      setSelected(new Set())
       router.refresh()
     } else {
       toast.error(res.error)
     }
+    setInviting(false)
+  }
+
+  async function handleCreateLogin() {
+    if (!makingLogin) return
+    setCreatingLogin(true)
+
+    const fd = new FormData()
+    fd.set('employeeId', makingLogin.id)
+    const res = await createEmployeeLogin(fd)
+
+    if (res.ok) {
+      setCredentials({ name: makingLogin.full_name, ...res.data })
+      setMakingLogin(null)
+      router.refresh()
+    } else {
+      toast.error(res.error)
+    }
+    setCreatingLogin(false)
+  }
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   return (
@@ -95,9 +152,18 @@ export default function EmployeesSection({
         title="Employees"
         subtitle={`${employees.length} on the roster`}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            {selected.size > 0 && (
+              <button onClick={handleInvite} disabled={inviting} className="btn btn-ghost btn-sm">
+                {inviting ? <Spinner size={14} /> : <Mail size={15} />}
+                Invite {selected.size}
+              </button>
+            )}
             <button onClick={exportCsv} disabled={filtered.length === 0} className="btn btn-ghost btn-sm">
               <Download size={15} /> Export
+            </button>
+            <button onClick={() => setImporting(true)} className="btn btn-ghost btn-sm">
+              <Upload size={15} /> Import CSV
             </button>
             <button onClick={() => setAdding(true)} className="btn btn-primary btn-sm">
               <UserPlus size={15} /> Add employee
@@ -158,10 +224,22 @@ export default function EmployeesSection({
             <table className="data-table">
               <thead>
                 <tr>
+                  <th className="w-10">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all shown"
+                      checked={filtered.length > 0 && filtered.every((e) => selected.has(e.id))}
+                      onChange={(ev) =>
+                        setSelected(ev.target.checked ? new Set(filtered.map((e) => e.id)) : new Set())
+                      }
+                      className="h-4 w-4 accent-[var(--primary)]"
+                    />
+                  </th>
                   <th>Employee</th>
                   <th>ID</th>
                   <th>Department</th>
                   <th>Site / Shift</th>
+                  <th>Account</th>
                   <th>Face</th>
                   <th>Status</th>
                   <th />
@@ -170,6 +248,15 @@ export default function EmployeesSection({
               <tbody>
                 {filtered.map((e) => (
                   <tr key={e.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${e.full_name}`}
+                        checked={selected.has(e.id)}
+                        onChange={() => toggle(e.id)}
+                        className="h-4 w-4 accent-[var(--primary)]"
+                      />
+                    </td>
                     <td>
                       <div className="flex items-center gap-2.5">
                         <Avatar name={e.full_name} size={32} />
@@ -189,11 +276,14 @@ export default function EmployeesSection({
                       <div className="muted text-xs">{e.shifts?.name ?? 'No shift'}</div>
                     </td>
                     <td>
-                      {e.face_descriptor ? (
-                        <Pill tone="var(--success)">Enrolled</Pill>
+                      {e.user_id ? (
+                        <Pill tone="var(--success)">Can sign in</Pill>
                       ) : (
-                        <Pill tone="var(--warning)">Pending</Pill>
+                        <Pill tone="var(--text-muted)">No login</Pill>
                       )}
+                    </td>
+                    <td>
+                      <FaceCell employee={e} />
                     </td>
                     <td>
                       <Pill tone={e.status === 'active' ? 'var(--success)' : 'var(--text-muted)'}>
@@ -202,23 +292,17 @@ export default function EmployeesSection({
                     </td>
                     <td>
                       <div className="flex justify-end gap-1">
-                        <button
-                          onClick={() => setEditing(e)}
-                          aria-label={`Edit ${e.full_name}`}
-                          className="muted touch-target rounded-lg transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)] cursor-pointer"
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        {e.face_descriptor && (
+                        {!e.user_id && (
                           <button
-                            onClick={() => handleResetFace(e)}
-                            aria-label={`Reset face enrollment for ${e.full_name}`}
-                            title="Reset face enrollment"
-                            className="muted touch-target rounded-lg transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)] cursor-pointer"
+                            onClick={() => setMakingLogin(e)}
+                            aria-label={`Create a login for ${e.full_name}`}
+                            title="Create login"
+                            className="icon-btn"
                           >
-                            <ScanFace size={15} />
+                            <KeyRound size={15} />
                           </button>
                         )}
+                        <EmployeeRowActions employee={e} onEdit={() => setEditing(e)} />
                       </div>
                     </td>
                   </tr>
@@ -230,14 +314,68 @@ export default function EmployeesSection({
       </Panel>
 
       <Modal
+        open={makingLogin !== null}
+        onClose={() => setMakingLogin(null)}
+        title={`Create a login for ${makingLogin?.full_name ?? ''}`}
+        description={makingLogin?.email}
+        size="sm"
+      >
+        <div className="space-y-3">
+          <Alert tone="info">
+            A temporary password is generated. {makingLogin?.full_name?.split(' ')[0]} will
+            be asked to choose their own the first time they sign in.
+          </Alert>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setMakingLogin(null)} className="btn btn-ghost">
+              Cancel
+            </button>
+            <button
+              onClick={handleCreateLogin}
+              disabled={creatingLogin}
+              className="btn btn-primary"
+            >
+              {creatingLogin ? <Spinner size={16} /> : <KeyRound size={16} />}
+              Create login
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={credentials !== null}
+        onClose={() => setCredentials(null)}
+        title="Login created"
+        description={`Share these with ${credentials?.name ?? ''} — the password is shown once.`}
+        size="sm"
+      >
+        {credentials && (
+          <CredentialsPanel
+            credentials={credentials}
+            onDone={() => setCredentials(null)}
+          />
+        )}
+      </Modal>
+
+      <Modal
+        open={importing}
+        onClose={() => setImporting(false)}
+        title="Import employees from CSV"
+        description="Rows are created immediately. Invite emails are a separate, optional step."
+        size="lg"
+      >
+        <CsvImport onImport={handleImport} onCancel={() => setImporting(false)} />
+      </Modal>
+
+      <Modal
         open={adding}
         onClose={() => setAdding(false)}
         title="Add employee"
-        description="An invite email is sent so they can set their own password."
+        description="Creates the record now. Send the invite email afterwards from the directory."
         size="lg"
       >
         <EmployeeForm
           sites={sites}
+          departments={departments}
           shifts={shifts}
           onDone={() => setAdding(false)}
           mode="create"
@@ -255,6 +393,7 @@ export default function EmployeesSection({
             key={editing.id}
             employee={editing}
             sites={sites}
+            departments={departments}
             shifts={shifts}
             onDone={() => setEditing(null)}
             mode="edit"
@@ -269,12 +408,15 @@ function EmployeeForm({
   employee,
   sites,
   shifts,
+  departments,
   onDone,
   mode,
 }: {
   employee?: EmployeeWithAssignment
   sites: Site[]
   shifts: Shift[]
+  /** Departments already on the roster, merged into the preset list. */
+  departments: string[]
   onDone: () => void
   mode: 'create' | 'edit'
 }) {
@@ -316,16 +458,35 @@ function EmployeeForm({
           </div>
         )}
         <Field label="Phone" name="phone" type="tel" defaultValue={employee?.phone ?? ''} />
-        <Field
-          label="Department"
-          name="department"
-          defaultValue={employee?.department ?? ''}
-        />
-        <Field
-          label="Designation"
-          name="designation"
-          defaultValue={employee?.designation ?? ''}
-        />
+        <div>
+          <label className="label" htmlFor="ef-department">
+            Department
+          </label>
+          <DepartmentSelect
+            id="ef-department"
+            defaultValue={employee?.department}
+            existing={departments}
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="ef-designation">
+            Designation
+          </label>
+          <input
+            id="ef-designation"
+            name="designation"
+            list="designation-options"
+            defaultValue={employee?.designation ?? ''}
+            placeholder="Start typing or pick one"
+            className="field"
+          />
+          {/* Suggestions, not a constraint — any title can still be typed. */}
+          <datalist id="designation-options">
+            {DESIGNATIONS.map((d) => (
+              <option key={d} value={d} />
+            ))}
+          </datalist>
+        </div>
         {mode === 'create' ? (
           <Field label="Joining date" name="joiningDate" type="date" />
         ) : (
@@ -469,6 +630,80 @@ function Field({
         defaultValue={defaultValue}
         className="field"
       />
+    </div>
+  )
+}
+
+/** Shows a freshly-created login once, with copy buttons for handover. */
+function CredentialsPanel({
+  credentials,
+  onDone,
+}: {
+  credentials: { name: string; email: string; password: string; needsConfirmation: boolean }
+  onDone: () => void
+}) {
+  const [copied, setCopied] = useState<string | null>(null)
+
+  async function copy(value: string, key: string) {
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(key)
+      setTimeout(() => setCopied(null), 2000)
+    } catch {
+      setCopied(null)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {credentials.needsConfirmation && (
+        <Alert tone="warning">
+          This deployment requires new accounts to confirm their email address, so{' '}
+          {credentials.name.split(' ')[0]} must click the confirmation link that was just
+          emailed before this password will work. Your administrator can change that.
+        </Alert>
+      )}
+
+      <CopyRow label="Email" value={credentials.email} copied={copied === 'email'} onCopy={() => copy(credentials.email, 'email')} />
+      <CopyRow label="Temporary password" value={credentials.password} mono copied={copied === 'pw'} onCopy={() => copy(credentials.password, 'pw')} />
+
+      <Alert tone="info">
+        They will be sent to the &ldquo;set your password&rdquo; screen on first sign-in,
+        so this temporary one stops working straight away.
+      </Alert>
+
+      <button onClick={onDone} className="btn btn-primary w-full">
+        Done
+      </button>
+    </div>
+  )
+}
+
+function CopyRow({
+  label,
+  value,
+  mono,
+  copied,
+  onCopy,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+  copied: boolean
+  onCopy: () => void
+}) {
+  return (
+    <div>
+      <span className="label">{label}</span>
+      <div className="flex items-center gap-2 rounded-lg bg-[var(--surface-2)] p-2">
+        <code className={`min-w-0 flex-1 truncate text-sm ${mono ? 'font-mono' : ''}`}>
+          {value}
+        </code>
+        <button onClick={onCopy} className="btn btn-ghost btn-sm shrink-0">
+          {copied ? <Check size={13} /> : <Copy size={13} />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
     </div>
   )
 }

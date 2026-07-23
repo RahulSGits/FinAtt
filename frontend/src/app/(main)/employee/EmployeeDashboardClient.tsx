@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'motion/react'
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useState } from 'react'
 import {
   BadgeCheck,
   CalendarCheck,
@@ -53,6 +53,17 @@ import {
   toCsv,
   WEEKDAY_LABELS,
 } from '@/lib/format'
+import {
+  allowedWorkModes,
+  faceAttemptsLeft,
+  PUNCTUAL_POINTS,
+  REWARD_GOAL,
+  MAX_FACE_ENROLL_ATTEMPTS,
+  siteKindMeta,
+  siteKindOf,
+  workModeMeta,
+  workModeOf,
+} from '@/lib/types'
 import type { Announcement, Attendance, Employee, Leave, Shift, Site } from '@/lib/types'
 import { applyLeave, cancelLeave, checkIn, checkOut, enrollFace, updateMyProfile } from './actions'
 import LiveClock from '@/components/LiveClock'
@@ -82,12 +93,17 @@ export default function EmployeeDashboardClient({
 }) {
   const [active, setActive] = useState('overview')
   const [checkInOpen, setCheckInOpen] = useState(false)
+  const [checkOutOpen, setCheckOutOpen] = useState(false)
+  const [reward, setReward] = useState<number | null>(null)
   const [enrollOpen, setEnrollOpen] = useState(false)
-  const [pending, startTransition] = useTransition()
   const toast = useToast()
   const router = useRouter()
 
   const enrolled = Boolean(employee?.face_descriptor?.length)
+  // Stored as one template per pose (or a single legacy array).
+  const attemptsLeft = faceAttemptsLeft(employee)
+  const workModes = useMemo(() => allowedWorkModes(site, shift), [site, shift])
+  const enrollLocked = attemptsLeft === 0
   const checkedIn = Boolean(todayRecord?.check_in)
   const checkedOut = Boolean(todayRecord?.check_out)
 
@@ -147,9 +163,15 @@ export default function EmployeeDashboardClient({
   async function handleEnroll(payload: CheckInPayload) {
     const fd = new FormData()
     fd.set('descriptor', JSON.stringify(payload.descriptor))
+    if (payload.templates) fd.set('templates', JSON.stringify(payload.templates))
     const res = await enrollFace(fd)
     if (res.ok) {
-      toast.success('Face enrolled. You can now check in.')
+      const left = res.data.attemptsLeft
+      toast.success(
+        left > 0
+          ? `Face enrolled. You can now check in. ${left} registration attempt${left === 1 ? '' : 's'} left.`
+          : 'Face enrolled. You can now check in. This was your last registration attempt.',
+      )
       // The server action revalidated; refresh so the new state is reflected.
       router.refresh()
       return { ok: true }
@@ -164,37 +186,37 @@ export default function EmployeeDashboardClient({
     fd.set('longitude', String(payload.coords.longitude))
     fd.set('accuracy', String(payload.coords.accuracy))
     fd.set('liveness', payload.liveness)
+    fd.set('workMode', payload.workMode)
     if (payload.selfie) fd.set('selfie', payload.selfie, 'selfie.jpg')
 
     const res = await checkIn(fd)
     if (res.ok) {
-      toast.success('Checked in. Have a good shift.')
+      if (res.data.pointsAwarded > 0) {
+        setReward(res.data.pointsAwarded)
+        toast.success(`On time! +${res.data.pointsAwarded} points earned.`)
+      } else {
+        toast.success('Checked in. Have a good shift.')
+      }
       router.refresh()
       return { ok: true }
     }
     return { ok: false, error: res.error }
   }
 
-  function handleCheckOut() {
-    startTransition(async () => {
-      const fd = new FormData()
-      try {
-        const { getCurrentPosition } = await import('@/lib/geo')
-        const pos = await getCurrentPosition(8000)
-        fd.set('latitude', String(pos.latitude))
-        fd.set('longitude', String(pos.longitude))
-      } catch {
-        // Check-out is not fenced — a missing fix must not block clocking off.
-      }
+  async function handleCheckOut(payload: CheckInPayload) {
+    const fd = new FormData()
+    fd.set('descriptor', JSON.stringify(payload.descriptor))
+    fd.set('liveness', payload.liveness)
+    fd.set('latitude', String(payload.coords.latitude))
+    fd.set('longitude', String(payload.coords.longitude))
 
-      const res = await checkOut(fd)
-      if (res.ok) {
-        toast.success(`Checked out — ${formatDuration(res.data.work_minutes)} logged.`)
-        router.refresh()
-      } else {
-        toast.error(res.error)
-      }
-    })
+    const res = await checkOut(fd)
+    if (res.ok) {
+      toast.success(`Checked out — ${formatDuration(res.data.work_minutes)} logged.`)
+      router.refresh()
+      return { ok: true }
+    }
+    return { ok: false, error: res.error }
   }
 
   function exportAttendance() {
@@ -276,39 +298,61 @@ export default function EmployeeDashboardClient({
               {!enrolled ? (
                 <>
                   <div className="mb-3">
-                    <Alert tone="info">
-                      Enroll your face once — it becomes the template every future
-                      check-in is matched against.
-                    </Alert>
+                    {enrollLocked ? (
+                      <Alert tone="warning">
+                        You have used all {MAX_FACE_ENROLL_ATTEMPTS} face registration
+                        attempts. Ask HR to grant you another before you can register
+                        again.
+                      </Alert>
+                    ) : (
+                      <Alert tone="info">
+                        Enroll your face once — it becomes the template every future
+                        check-in is matched against. You have{' '}
+                        <strong>
+                          {attemptsLeft} of {MAX_FACE_ENROLL_ATTEMPTS}
+                        </strong>{' '}
+                        attempts left.
+                      </Alert>
+                    )}
                   </div>
                   <button
                     onClick={() => setEnrollOpen(true)}
-                    disabled={!employee}
+                    disabled={!employee || enrollLocked}
                     className="btn btn-primary w-full"
                   >
-                    <ScanFace size={17} /> Enroll my face
+                    <ScanFace size={17} />
+                    {enrollLocked ? 'Registration locked' : 'Enroll my face'}
                   </button>
                 </>
               ) : checkedOut ? (
-                <div className="rounded-lg bg-[var(--success-soft)] px-3 py-3 text-center">
-                  <BadgeCheck
-                    size={22}
-                    className="mx-auto mb-1"
-                    style={{ color: 'var(--success)' }}
-                  />
-                  <p className="text-sm font-medium">Shift complete</p>
-                  <p className="muted mt-0.5 text-xs">
-                    {formatDuration(todayRecord!.work_minutes)} logged today
-                  </p>
-                </div>
+                <>
+                  <div className="rounded-lg bg-[var(--success-soft)] px-3 py-3 text-center">
+                    <BadgeCheck
+                      size={22}
+                      className="mx-auto mb-1"
+                      style={{ color: 'var(--success)' }}
+                    />
+                    <p className="text-sm font-medium">Shift complete</p>
+                    <p className="muted mt-0.5 text-xs">
+                      {formatDuration(todayRecord!.work_minutes)} logged today
+                      {(todayRecord!.session_count ?? 1) > 1 &&
+                        ` · ${todayRecord!.session_count} sessions`}
+                    </p>
+                  </div>
+                  {/* Back from a break — start another session; earlier time is kept. */}
+                  <button
+                    onClick={() => setCheckInOpen(true)}
+                    className="btn btn-ghost mt-2 w-full"
+                  >
+                    <LogIn size={16} /> Check in again
+                  </button>
+                </>
               ) : checkedIn ? (
                 <button
-                  onClick={handleCheckOut}
-                  disabled={pending}
+                  onClick={() => setCheckOutOpen(true)}
                   className="btn btn-danger w-full"
                 >
-                  {pending ? <Spinner size={16} /> : <LogOut size={17} />}
-                  Check out
+                  <LogOut size={17} /> Check out
                 </button>
               ) : (
                 <button
@@ -326,7 +370,20 @@ export default function EmployeeDashboardClient({
                   <dt className="muted flex items-center gap-1.5">
                     <MapPin size={13} /> Site
                   </dt>
-                  <dd className="text-right font-medium">{site?.name ?? 'Unassigned'}</dd>
+                  <dd className="text-right font-medium">
+                    {site?.name ?? 'Unassigned'}
+                    {site && (
+                      <span
+                        className="ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                        style={{
+                          background: `color-mix(in srgb, ${siteKindMeta[siteKindOf(site)].color} 16%, transparent)`,
+                          color: siteKindMeta[siteKindOf(site)].color,
+                        }}
+                      >
+                        {siteKindMeta[siteKindOf(site)].short}
+                      </span>
+                    )}
+                  </dd>
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <dt className="muted flex items-center gap-1.5">
@@ -336,6 +393,17 @@ export default function EmployeeDashboardClient({
                     {shift
                       ? `${formatShiftTime(shift.start_time)} – ${formatShiftTime(shift.end_time)}`
                       : 'Unassigned'}
+                    {shift && (
+                      <span
+                        className="ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                        style={{
+                          background: `color-mix(in srgb, ${workModeMeta[workModeOf(shift)].color} 16%, transparent)`,
+                          color: workModeMeta[workModeOf(shift)].color,
+                        }}
+                      >
+                        {workModeMeta[workModeOf(shift)].label}
+                      </span>
+                    )}
                   </dd>
                 </div>
                 {shift && (
@@ -552,6 +620,7 @@ export default function EmployeeDashboardClient({
           site={site}
           shift={shift}
           enrolled={enrolled}
+          attemptsLeft={attemptsLeft}
           onReEnroll={() => setEnrollOpen(true)}
         />
       )}
@@ -565,6 +634,7 @@ export default function EmployeeDashboardClient({
       >
         <FaceCheckIn
           mode="enroll"
+          workModes={workModes}
           onSubmit={handleEnroll}
           onCancel={() => setEnrollOpen(false)}
         />
@@ -579,9 +649,65 @@ export default function EmployeeDashboardClient({
         <FaceCheckIn
           mode="verify"
           site={site}
+          shift={shift}
+          workModes={workModes}
           enrolledDescriptor={employee?.face_descriptor ?? null}
           onSubmit={handleCheckIn}
           onCancel={() => setCheckInOpen(false)}
+        />
+      </Modal>
+
+      <Modal
+        open={reward !== null}
+        onClose={() => setReward(null)}
+        title="Nice work"
+        size="sm"
+      >
+        <div className="space-y-3 text-center">
+          <div className="text-4xl">🎉</div>
+          <p className="text-lg font-semibold">
+            You earned +{reward ?? PUNCTUAL_POINTS} points
+          </p>
+          <p className="muted text-sm">
+            Checked in on time and on site. Points build toward a reward at{' '}
+            {REWARD_GOAL.toLocaleString()}.
+          </p>
+          <div className="rounded-lg bg-[var(--surface-2)] p-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="muted">Balance</span>
+              <span className="font-semibold tabular-nums">
+                {(employee?.reward_points ?? 0) + (reward ?? 0)} / {REWARD_GOAL.toLocaleString()}
+              </span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--surface-3)]">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.min(100, (((employee?.reward_points ?? 0) + (reward ?? 0)) / REWARD_GOAL) * 100)}%`,
+                  background: 'var(--success)',
+                }}
+              />
+            </div>
+          </div>
+          <button onClick={() => setReward(null)} className="btn btn-primary w-full">
+            Continue
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={checkOutOpen}
+        onClose={() => setCheckOutOpen(false)}
+        title="Check out"
+        description="Verify your face to clock off."
+      >
+        <FaceCheckIn
+          mode="checkout"
+          site={site}
+          shift={shift}
+          enrolledDescriptor={employee?.face_descriptor ?? null}
+          onSubmit={handleCheckOut}
+          onCancel={() => setCheckOutOpen(false)}
         />
       </Modal>
     </DashboardShell>
@@ -768,6 +894,7 @@ function ProfileSection({
   site,
   shift,
   enrolled,
+  attemptsLeft,
   onReEnroll,
 }: {
   employee: Employee | null
@@ -775,6 +902,7 @@ function ProfileSection({
   site: Site | null
   shift: Shift | null
   enrolled: boolean
+  attemptsLeft: number
   onReEnroll: () => void
 }) {
   const [saving, setSaving] = useState(false)
@@ -905,6 +1033,42 @@ function ProfileSection({
             </dl>
           </Panel>
 
+          <Panel title="Balance" subtitle="Points earned for punctual, on-site check-ins">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold tabular-nums">
+                {(employee?.reward_points ?? 0).toLocaleString()}
+              </span>
+              <span className="muted text-sm">
+                / {REWARD_GOAL.toLocaleString()} points
+              </span>
+            </div>
+
+            <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[var(--surface-2)]">
+              <div
+                className="h-full rounded-full transition-[width] duration-500"
+                style={{
+                  width: `${Math.min(100, ((employee?.reward_points ?? 0) / REWARD_GOAL) * 100)}%`,
+                  background: 'var(--success)',
+                }}
+              />
+            </div>
+
+            <p className="muted mt-3 text-sm">
+              Earn <strong>{PUNCTUAL_POINTS} points</strong> every time you check in on
+              time and on site. <strong>If you earn {REWARD_GOAL.toLocaleString()} points
+              you may get a reward.</strong>
+            </p>
+
+            {(employee?.reward_points ?? 0) >= REWARD_GOAL && (
+              <div className="mt-3">
+                <Alert tone="success">
+                  You have reached {REWARD_GOAL.toLocaleString()} points — speak to HR
+                  about claiming your reward.
+                </Alert>
+              </div>
+            )}
+          </Panel>
+
           <Panel title="Face enrollment">
             <div className="flex items-start gap-3">
               <span
@@ -921,12 +1085,19 @@ function ProfileSection({
                   {enrolled ? 'Face template active' : 'Not enrolled yet'}
                 </p>
                 <p className="muted mt-0.5 text-xs">
-                  {enrolled
-                    ? `Enrolled ${employee?.face_enrolled_at ? formatDate(employee.face_enrolled_at) : ''}. Re-enroll if your appearance changes significantly.`
-                    : 'Enroll your face to unlock selfie check-in.'}
+                  {attemptsLeft === 0
+                    ? `All ${MAX_FACE_ENROLL_ATTEMPTS} registration attempts used. Ask HR to grant another.`
+                    : enrolled
+                      ? `Enrolled ${employee?.face_enrolled_at ? formatDate(employee.face_enrolled_at) : ''}. ${attemptsLeft} of ${MAX_FACE_ENROLL_ATTEMPTS} attempts left — re-enroll if your appearance changes significantly.`
+                      : `Enroll your face to unlock selfie check-in. ${attemptsLeft} of ${MAX_FACE_ENROLL_ATTEMPTS} attempts left.`}
                 </p>
-                <button onClick={onReEnroll} className="btn btn-ghost btn-sm mt-3">
-                  <ScanFace size={15} /> {enrolled ? 'Re-enroll' : 'Enroll now'}
+                <button
+                  onClick={onReEnroll}
+                  disabled={attemptsLeft === 0}
+                  className="btn btn-ghost btn-sm mt-3"
+                >
+                  <ScanFace size={15} />
+                  {attemptsLeft === 0 ? 'Locked' : enrolled ? 'Re-enroll' : 'Enroll now'}
                 </button>
               </div>
             </div>

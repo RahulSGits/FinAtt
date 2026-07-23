@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Clock, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Building2, Clock, Home, Laptop, Pencil, Plus, Trash2 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/Toast'
 import { Alert, EmptyState, PageHeader, Panel, Pill, Spinner } from '@/components/ui'
 import { formatDuration, formatShiftTime, WEEKDAY_LABELS } from '@/lib/format'
-import type { Shift } from '@/lib/types'
+import { workModeMeta, workModeOf } from '@/lib/types'
+import type { Shift, WorkMode } from '@/lib/types'
 import { deleteShift, saveShift } from '../actions'
 
 export default function ShiftsSection({ shifts }: { shifts: Shift[] }) {
@@ -40,7 +41,7 @@ export default function ShiftsSection({ shifts }: { shifts: Shift[] }) {
     <>
       <PageHeader
         title="Shifts"
-        subtitle="Working windows and the thresholds that decide each day's status"
+        subtitle="Working windows, work mode, and the thresholds that decide each day's status"
         action={
           <button onClick={() => setCreating(true)} className="btn btn-primary btn-sm">
             <Plus size={15} /> Add shift
@@ -64,7 +65,20 @@ export default function ShiftsSection({ shifts }: { shifts: Shift[] }) {
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {shifts.map((shift) => (
-            <article key={shift.id} className="card lift p-4">
+            <article
+              key={shift.id}
+              className="card lift relative overflow-hidden p-4"
+              style={{
+                borderColor: `color-mix(in srgb, ${workModeMeta[workModeOf(shift)].color} 35%, var(--border))`,
+              }}
+            >
+              {/* Colour bar keyed to work mode, so the three states are
+                  separable at a glance across a grid of cards. */}
+              <span
+                aria-hidden
+                className="absolute inset-x-0 top-0 h-1"
+                style={{ background: workModeMeta[workModeOf(shift)].color }}
+              />
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h3 className="truncate font-medium">{shift.name}</h3>
@@ -90,6 +104,10 @@ export default function ShiftsSection({ shifts }: { shifts: Shift[] }) {
                 </div>
               </div>
 
+              <div className="mb-3">
+                <WorkModeChip mode={workModeOf(shift)} />
+              </div>
+
               <div className="mb-3 flex flex-wrap gap-1">
                 {WEEKDAY_LABELS.map((label, i) => {
                   const on = shift.work_days.includes(i + 1)
@@ -99,8 +117,10 @@ export default function ShiftsSection({ shifts }: { shifts: Shift[] }) {
                       title={label}
                       className="grid h-6 w-6 place-items-center rounded text-[10px] font-semibold"
                       style={{
-                        background: on ? 'var(--primary-soft)' : 'var(--surface-2)',
-                        color: on ? 'var(--primary)' : 'var(--text-subtle)',
+                        background: on
+                          ? `color-mix(in srgb, ${workModeMeta[workModeOf(shift)].color} 18%, transparent)`
+                          : 'var(--surface-2)',
+                        color: on ? workModeMeta[workModeOf(shift)].color : 'var(--text-subtle)',
                       }}
                     >
                       {label[0]}
@@ -170,6 +190,85 @@ export default function ShiftsSection({ shifts }: { shifts: Shift[] }) {
   )
 }
 
+const MODE_ICON: Record<WorkMode, typeof Home> = {
+  on_site: Building2,
+  remote: Home,
+  hybrid: Laptop,
+}
+
+function WorkModeChip({ mode }: { mode: WorkMode }) {
+  const meta = workModeMeta[mode]
+  const Icon = MODE_ICON[mode]
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+      style={{
+        background: `color-mix(in srgb, ${meta.color} 16%, transparent)`,
+        color: meta.color,
+      }}
+    >
+      <Icon size={13} />
+      {meta.label}
+    </span>
+  )
+}
+
+function WorkModePicker({
+  value,
+  onChange,
+}: {
+  value: WorkMode
+  onChange: (mode: WorkMode) => void
+}) {
+  return (
+    <fieldset>
+      <legend className="label">Work mode</legend>
+      <div className="grid gap-2 sm:grid-cols-3">
+        {(Object.keys(workModeMeta) as WorkMode[]).map((mode) => {
+          const meta = workModeMeta[mode]
+          const Icon = MODE_ICON[mode]
+          const active = value === mode
+          return (
+            <label
+              key={mode}
+              className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 transition-colors"
+              style={{
+                borderColor: active ? meta.color : 'var(--border)',
+                background: active
+                  ? `color-mix(in srgb, ${meta.color} 10%, transparent)`
+                  : 'transparent',
+              }}
+            >
+              <input
+                type="radio"
+                name="workModeRadio"
+                value={mode}
+                checked={active}
+                onChange={() => onChange(mode)}
+                className="sr-only"
+              />
+              <Icon
+                size={16}
+                className="mt-0.5 shrink-0"
+                style={{ color: active ? meta.color : 'var(--text-muted)' }}
+              />
+              <span className="min-w-0">
+                <span
+                  className="block text-sm font-medium"
+                  style={{ color: active ? meta.color : 'var(--text)' }}
+                >
+                  {meta.label}
+                </span>
+                <span className="muted block text-xs">{meta.description}</span>
+              </span>
+            </label>
+          )
+        })}
+      </div>
+    </fieldset>
+  )
+}
+
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-2">
@@ -180,6 +279,7 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 function ShiftForm({ shift, onDone }: { shift: Shift | null; onDone: () => void }) {
+  const [workMode, setWorkMode] = useState<WorkMode>(workModeOf(shift))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const toast = useToast()
@@ -192,6 +292,7 @@ function ShiftForm({ shift, onDone }: { shift: Shift | null; onDone: () => void 
 
     const fd = new FormData(e.currentTarget)
     if (shift) fd.set('id', shift.id)
+    fd.set('workMode', workMode)
 
     const res = await saveShift(fd)
     if (res.ok) {
@@ -222,6 +323,8 @@ function ShiftForm({ shift, onDone }: { shift: Shift | null; onDone: () => void 
           className="field"
         />
       </div>
+
+      <WorkModePicker value={workMode} onChange={setWorkMode} />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div>

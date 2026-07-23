@@ -38,20 +38,25 @@ columns, the auto-status trigger, and a private `selfies` storage bucket.
 
 Create `frontend/.env.local`:
 
+Copy `frontend/.env.example` to `frontend/.env.local` and fill it in:
+
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<anon / publishable key>
 
-# Only needed for HR → Add employee, which invites users via the Admin API.
+# Needed only to send invite / password-reset emails.
 SUPABASE_SERVICE_ROLE_KEY=<service_role key>
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+RESEND_API_KEY=<resend key>
+EMAIL_FROM=FinAtt <noreply@yourdomain.com>
 
 # Only needed for the AI assistant.
 GEMINI_API_KEY=<key>
 ```
 
-Both Supabase keys come from **Project Settings → API**. If `SUPABASE_SERVICE_ROLE_KEY` is
-missing or stale, everything still works except inviting new employees, which reports
-exactly that.
+Both Supabase keys come from **Project Settings → API**. Only the first two are
+mandatory — without the rest, everything works except invite emails, and the app says so
+rather than failing silently.
 
 ### 3. Run
 
@@ -92,13 +97,41 @@ Anyone can also self-register at `/register` and pick a role.
 
 ### HR console
 - KPIs, a 14-day attendance trend, status mix and department headcount
-- Employee directory: invite, edit, assign site + shift, reset a face enrollment
+- Employee directory: add, edit, assign site + shift, reset a face enrollment
+- **CSV import** — drag a spreadsheet in, preview the parsed rows, bulk-create staff.
+  Headers are matched by alias, quoted fields and `DD/MM/YYYY` dates are handled,
+  and duplicates are skipped with a reason
+- **Bulk invite** — select employees and email them a password-setup link
 - Attendance across the company with date/status/name filters and CSV export
 - Manual attendance override for days the automatic rules got wrong
-- Leave approvals — approving a request posts those days to the attendance sheet
+- Leave approvals — approving posts those days to the attendance sheet and emails
+  the employee
 - Announcements with priority levels
-- Work sites: geofence editor on a map, with radius and "use my location"
+- **Work sites by kind** — *Office* (geofenced, map editor with radius and "use my
+  location"), *Remote / work from home* (no location check), or *Hybrid*
 - Shifts: working days, grace period, and the thresholds driving Present/Half/Absent
+
+---
+
+## How employees get their password
+
+Two independent paths, so neither the service key nor SMTP is a single point of failure.
+
+**A — HR sends an invite.** HR adds an employee (form or CSV), selects them, and hits
+**Invite**. The server mints a link with `admin.generateLink()` and mails it through
+Resend. The employee clicks it → `/auth/callback` exchanges the code for a session →
+`password_created: false` routes them to `/set-password`.
+
+> Supabase's built-in SMTP is capped at roughly 2–3 emails/hour and is not for
+> production — invites silently vanish on a real roster. Set `RESEND_API_KEY` and
+> `EMAIL_FROM` (the app then sends its own branded HTML), or point Supabase at an SMTP
+> provider under **Project Settings → Authentication → SMTP Settings**. Either way you
+> must verify a sending domain first.
+
+**B — Self-serve claim, no keys required.** HR imports the roster; rows are created with
+`user_id = NULL`. When the employee registers at `/register` with the same email, the
+`handle_new_profile` trigger adopts the pre-imported row, carrying over their department,
+designation, site and shift. This is why the CSV import never touches the auth admin API.
 
 ---
 

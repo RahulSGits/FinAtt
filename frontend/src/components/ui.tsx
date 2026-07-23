@@ -158,6 +158,8 @@ export function Panel({
   action,
   className = '',
   bodyClassName = 'p-4',
+  style,
+  accent,
 }: {
   title?: string
   subtitle?: string
@@ -165,9 +167,20 @@ export function Panel({
   action?: React.ReactNode
   className?: string
   bodyClassName?: string
+  style?: React.CSSProperties
+  /** Draws a colour bar across the top edge, for at-a-glance categorisation. */
+  accent?: string
 }) {
   return (
-    <section className={`card overflow-hidden ${className}`}>
+    // `relative` so an accent bar can pin to the top edge.
+    <section className={`card relative overflow-hidden ${className}`} style={style}>
+      {accent && (
+        <span
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-1"
+          style={{ background: accent }}
+        />
+      )}
       {title && (
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
           <div className="min-w-0">

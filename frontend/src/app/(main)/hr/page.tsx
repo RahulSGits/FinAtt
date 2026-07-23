@@ -1,13 +1,19 @@
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { getSession } from '@/lib/auth'
 import { localDateKey } from '@/lib/format'
+import { usingSandboxSender } from '@/lib/email'
 import HrDashboardClient from './HrDashboardClient'
 import type {
   Announcement,
   AttendanceWithEmployee,
+  Employee,
   EmployeeWithAssignment,
   LeaveWithEmployee,
+  LoginStatsRow,
+  RecentLogin,
   Shift,
   Site,
 } from '@/lib/types'
@@ -16,6 +22,37 @@ export const dynamic = 'force-dynamic'
 
 /** Days of attendance history loaded for the console's charts and tables. */
 const HISTORY_DAYS = 60
+
+/**
+ * Postgres/PostgREST codes that mean "the migration hasn't been applied",
+ * as opposed to an ordinary query failure.
+ *
+ * 42P17 — infinite recursion in an RLS policy (the un-fixed profiles policy).
+ * 42P01 / PGRST205 — relation or table missing from the schema cache.
+ */
+const SETUP_CODES = new Set(['42P17', '42P01', 'PGRST205', 'PGRST200'])
+
+function isSetupError(error: { code?: string } | null): boolean {
+  return Boolean(error?.code && SETUP_CODES.has(error.code))
+}
+
+/** SQL scripts, read only for the Diagnostics tab. */
+async function readSetupSql() {
+  const root = path.join(process.cwd(), '..', 'supabase')
+  const read = async (relative: string) => {
+    try {
+      return await readFile(path.join(root, relative), 'utf8')
+    } catch {
+      return null
+    }
+  }
+  const [migration, repair, loginTracking] = await Promise.all([
+    read('migrations/20260721000000_finatt_full_schema.sql'),
+    read('repair_broken_logins.sql'),
+    read('migrations/20260723000000_login_tracking.sql'),
+  ])
+  return { migration, repair, loginTracking }
+}
 
 export default async function HrPage() {
   const session = await getSession()
@@ -27,12 +64,15 @@ export default async function HrPage() {
   const since = new Date()
   since.setDate(since.getDate() - HISTORY_DAYS)
 
-  const [employeesRes, attendanceRes, leavesRes, announcementsRes, sitesRes, shiftsRes] =
+  // Fetched separately rather than with `employees(*, sites(*), shifts(*))`.
+  // An embedded select fails wholesale if any one relation is missing from the
+  // schema cache, so a single absent table blanked the entire console. Joining
+  // in memory means each dataset degrades on its own.
+  const [employeesRes, sitesRes, shiftsRes, attendanceRes, leavesRes, announcementsRes] =
     await Promise.all([
-      supabase
-        .from('employees')
-        .select('*, sites(*), shifts(*)')
-        .order('created_at', { ascending: false }),
+      supabase.from('employees').select('*').order('created_at', { ascending: false }),
+      supabase.from('sites').select('*').order('created_at'),
+      supabase.from('shifts').select('*').order('start_time'),
       supabase
         .from('attendance')
         .select('*, employees(id, full_name, employee_id, department)')
@@ -43,20 +83,70 @@ export default async function HrPage() {
         .select('*, employees(id, full_name, employee_id, department)')
         .order('created_at', { ascending: false }),
       supabase.from('announcements').select('*').order('created_at', { ascending: false }),
-      supabase.from('sites').select('*').order('created_at'),
-      supabase.from('shifts').select('*').order('start_time'),
     ])
 
+  // Login stats live behind RPCs added by a later migration; their absence is a
+  // "not installed yet" state, not an error the user can act on differently.
+  const [statsRes, recentRes] = await Promise.all([
+    supabase.rpc('portal_login_stats'),
+    supabase.rpc('recent_logins', { limit_count: 25 }),
+  ])
+  const statsUnavailable = /portal_login_stats|recent_logins/i.test(
+    statsRes.error?.message ?? '',
+  )
+
+  const sites = (sitesRes.data ?? []) as Site[]
+  const shifts = (shiftsRes.data ?? []) as Shift[]
+
+  const siteById = new Map(sites.map((s) => [s.id, s]))
+  const shiftById = new Map(shifts.map((s) => [s.id, s]))
+
+  const employees: EmployeeWithAssignment[] = ((employeesRes.data ?? []) as Employee[]).map(
+    (employee) => ({
+      ...employee,
+      sites: employee.site_id ? (siteById.get(employee.site_id) ?? null) : null,
+      shifts: employee.shift_id ? (shiftById.get(employee.shift_id) ?? null) : null,
+    }),
+  )
+
+  // Only the roster query decides whether this is a setup problem — the others
+  // may legitimately be empty on a fresh install.
+  const needsSetup =
+    isSetupError(employeesRes.error) ||
+    isSetupError(sitesRes.error) ||
+    isSetupError(shiftsRes.error)
+
+  const loadError = needsSetup
+    ? null
+    : (employeesRes.error?.message ??
+      attendanceRes.error?.message ??
+      leavesRes.error?.message ??
+      null)
+
+  const setupSql = await readSetupSql()
   return (
     <HrDashboardClient
       userProfile={{ id: session.userId, name: session.name, role: 'hr' }}
-      employees={(employeesRes.data ?? []) as EmployeeWithAssignment[]}
+      employees={employees}
       attendance={(attendanceRes.data ?? []) as AttendanceWithEmployee[]}
       leaves={(leavesRes.data ?? []) as LeaveWithEmployee[]}
       announcements={(announcementsRes.data ?? []) as Announcement[]}
-      sites={(sitesRes.data ?? []) as Site[]}
-      shifts={(shiftsRes.data ?? []) as Shift[]}
-      loadError={employeesRes.error?.message ?? null}
+      sites={sites}
+      shifts={shifts}
+      loadError={loadError}
+      needsSetup={needsSetup}
+      loginStats={(statsRes.data ?? []) as LoginStatsRow[]}
+      recentLogins={(recentRes.data ?? []) as RecentLogin[]}
+      statsUnavailable={statsUnavailable}
+      setupSql={setupSql}
+      diagnostics={{
+        serviceKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+        email: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
+        sandboxSender: usingSandboxSender(),
+        siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+        aiModel: process.env.GEMINI_MODEL || 'gemini-flash-latest (auto)',
+        aiConfigured: Boolean(process.env.GEMINI_API_KEY),
+      }}
     />
   )
 }

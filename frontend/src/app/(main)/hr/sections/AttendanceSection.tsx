@@ -13,7 +13,6 @@ import {
   Panel,
   SegmentedControl,
   Spinner,
-  StatusBadge,
 } from '@/components/ui'
 import {
   downloadCsv,
@@ -25,6 +24,7 @@ import {
 } from '@/lib/format'
 import type { AttendanceWithEmployee, EmployeeWithAssignment } from '@/lib/types'
 import { overrideAttendance } from '../actions'
+import AttendanceStatusEditor from './AttendanceStatusEditor'
 
 type Range = 'today' | '7d' | '30d' | 'all'
 
@@ -204,7 +204,7 @@ export default function AttendanceSection({
                     </td>
                     <td className="whitespace-nowrap">{formatDate(a.date)}</td>
                     <td>
-                      <StatusBadge status={a.status} />
+                      <AttendanceStatusEditor record={a} />
                     </td>
                     <td className="tabular-nums">
                       {formatTime(a.check_in)}

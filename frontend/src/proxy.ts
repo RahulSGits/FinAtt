@@ -15,9 +15,10 @@ export const config = {
      * Everything except:
      * - api routes (they do their own auth)
      * - _next internals (static chunks, HMR)
-     * - models (face-api weights; large and public)
+     * - models / mediapipe (face weights and WASM; large, public, and needed
+     *   before the user is signed in on the enrollment screen)
      * - files with a static extension
      */
-    '/((?!api|_next|models|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js|woff|woff2|ttf|eot|ico|bin|json)$).*)',
+    '/((?!api|_next|models|mediapipe|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js|woff|woff2|ttf|eot|ico|bin|json|wasm|task)$).*)',
   ],
 }
