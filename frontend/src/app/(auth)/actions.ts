@@ -46,51 +46,58 @@ function describeCause(err: unknown): string {
   return typeof cause === 'string' ? cause : ''
 }
 
+const INVALID_CREDENTIALS = 'Invalid email or password.'
+
 /**
- * Turn a Supabase auth failure into something a human can act on.
+ * The one line the sign-in form is allowed to show.
  *
- * `error.message` is not always usable: when GoTrue returns a 500 whose body
- * the client cannot parse, supabase-js hands back the literal string "{}",
- * which previously rendered as an empty red box on the sign-in form.
+ * Everyone — employee, HR, admin — sees the same short text. Server-side detail
+ * (stack traces, SQL errors, "Database error querying schema") never reaches the
+ * page: it tells an attacker which accounts exist and which are misconfigured,
+ * and it means nothing to the person trying to sign in. The real cause is logged
+ * for whoever is reading the server output instead.
+ *
+ * Anything that is not clearly the user's fault falls back to the same generic
+ * credential message, so a new failure mode cannot leak internals by default.
  */
-function describeAuthError(error: { message?: string; status?: number; code?: string }): string {
+function describeAuthError(error: {
+  message?: string
+  status?: number
+  code?: string
+}): string {
   const message = (error.message ?? '').trim()
-  const useless = message === '' || message === '{}' || message === '[object Object]'
 
-  // A transport failure is not an authentication failure; saying "fetch failed"
-  // to someone typing a password is actively misleading.
+  // Diagnostics go to the operator, not the visitor.
+  console.error('[auth] sign-in failed:', {
+    status: error.status,
+    code: error.code,
+    message: message || '(empty body)',
+  })
+
+  // A transport failure is not an authentication failure; telling someone their
+  // password is wrong when the server is unreachable sends them in circles.
   if (isNetworkError(error as unknown) || /fetch failed|UND_ERR|ETIMEDOUT/i.test(message)) {
-    return 'Could not reach the authentication service. Check your connection and try again in a moment.'
-  }
-
-  // The same generic text for a wrong password and an unknown address is
-  // deliberate — it stops the form being used to enumerate who has an account.
-  if (/invalid login/i.test(message)) {
-    return 'That email and password combination is not recognised.'
+    return 'Could not reach the server. Check your connection and try again.'
   }
 
   if (/email not confirmed/i.test(message)) {
-    return 'This account still needs to confirm its email address. Check the inbox for the confirmation link.'
+    return 'Please confirm your email address before signing in.'
   }
 
-  if (/database error querying schema/i.test(message) || (useless && error.status === 500)) {
-    // The auth server could not read this account's row at all, so the password
-    // was never even checked. In practice this is an account inserted by raw SQL:
-    // auth.users has varchar columns the auth server reads into a non-nullable
-    // string, and an INSERT that omits them leaves NULLs it cannot scan.
-    return (
-      "The server could not read this account's sign-in record, so the password was " +
-      'never checked — changing it will not help. An administrator can repair every ' +
-      'affected account by running supabase/FIX_LOGIN_500.sql in the Supabase SQL ' +
-      'editor. (Reference: HTTP 500 "Database error querying schema".)'
-    )
+  if (/too many|rate limit/i.test(message) || error.status === 429) {
+    return 'Too many attempts. Please wait a minute and try again.'
   }
 
-  if (useless) {
-    return `Sign-in failed${error.status ? ` (HTTP ${error.status})` : ''}. Check the server logs for details.`
+  // Server-side fault: the password was never actually checked. Say only that
+  // it is not the user's fault, so they stop retrying and ask for help.
+  if (
+    error.status === 500 ||
+    /database error|unexpected_failure|internal/i.test(message)
+  ) {
+    return 'Sign-in is temporarily unavailable. Please contact your administrator.'
   }
 
-  return message
+  return INVALID_CREDENTIALS
 }
 
 function landingFor(role: Role): string {
@@ -187,11 +194,14 @@ export async function register(formData: FormData): Promise<AuthActionState> {
   })
 
   if (error) {
-    return {
-      error: /already registered/i.test(error.message)
-        ? 'An account already exists for that email. Try signing in instead.'
-        : error.message,
+    if (/already registered/i.test(error.message)) {
+      return { error: 'An account already exists for that email. Try signing in instead.' }
     }
+    if (/password/i.test(error.message)) {
+      return { error: 'Please choose a longer password (at least 8 characters).' }
+    }
+    console.error('[auth] sign-up failed:', error.message)
+    return { error: 'Could not create the account. Please try again or contact your administrator.' }
   }
 
   // With email confirmation switched on, signUp returns a user but no session.
@@ -290,7 +300,14 @@ export async function changeOwnPassword(formData: FormData): Promise<AuthActionS
   }
 
   const { error } = await supabase.auth.updateUser({ password })
-  if (error) return { error: error.message }
+  if (error) {
+    // Password-strength complaints are worth repeating verbatim — they tell the
+    // user exactly what to change. Anything else is a server problem they cannot
+    // act on, so it goes to the log rather than the screen.
+    if (/password/i.test(error.message)) return { error: error.message }
+    console.error('[auth] password change failed:', error.message)
+    return { error: 'Could not update the password. Please try again.' }
+  }
 
   // Consume the grant so it cannot be reused.
   await supabase
