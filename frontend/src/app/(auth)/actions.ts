@@ -1,6 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { createClient as createStatelessClient } from '@supabase/supabase-js'
 import { createClient } from '@/utils/supabase/server'
 import type { Role } from '@/lib/types'
 
@@ -44,6 +45,19 @@ function describeCause(err: unknown): string {
   const cause = (err as { cause?: unknown })?.cause
   if (cause instanceof Error) return `${cause.name}: ${cause.message}`
   return typeof cause === 'string' ? cause : ''
+}
+
+/**
+ * Cookie-less client used only to check that someone knows their current
+ * password. Signing in on the request's own client would rotate the live
+ * session's tokens as a side effect of a verification step.
+ */
+function createVerificationClient() {
+  return createStatelessClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  )
 }
 
 const INVALID_CREDENTIALS = 'Invalid email or password.'
@@ -233,26 +247,32 @@ export async function changeOwnPassword(formData: FormData): Promise<AuthActionS
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, password_created, password_reset_allowed')
+    .select('password_created')
     .eq('id', user.id)
-    .maybeSingle<{
-      role: Role | null
-      password_created: boolean | null
-      password_reset_allowed: boolean | null
-    }>()
+    .maybeSingle<{ password_created: boolean | null }>()
 
-  // An admin is the one who issues these grants, so gating them behind one is
-  // circular -- the console told the only administrator to go ask an
-  // administrator. Admins always control their own password.
-  const isAdmin = (profile?.role ?? user.user_metadata?.role) === 'admin'
   const firstTime = profile?.password_created === false
-  const granted = profile?.password_reset_allowed === true
 
-  if (!isAdmin && !firstTime && !granted) {
-    return {
-      error:
-        'Changing your password needs an administrator to grant permission first. Ask them to enable it for your account.',
+  // Changing your own password needs nobody's permission. Requiring an admin
+  // grant was wrong for every role: it left HR unable to rotate a password they
+  // believed was compromised, and was circular for the administrator who issues
+  // the grants in the first place.
+  //
+  // What it does require — except on a first login, where there is no old
+  // password to know — is proof of the current one. Without that, anyone who
+  // reached an unattended session could lock the real owner out of the account.
+  if (!firstTime) {
+    const currentPassword = String(formData.get('currentPassword') ?? '')
+    if (!currentPassword) return { error: 'Enter your current password.' }
+    if (currentPassword === password) {
+      return { error: 'That is already your password. Choose a different one.' }
     }
+
+    const { error: wrong } = await createVerificationClient().auth.signInWithPassword({
+      email: user.email ?? '',
+      password: currentPassword,
+    })
+    if (wrong) return { error: 'Your current password is not correct.' }
   }
 
   const { error } = await supabase.auth.updateUser({ password })
@@ -265,17 +285,8 @@ export async function changeOwnPassword(formData: FormData): Promise<AuthActionS
     return { error: 'Could not update the password. Please try again.' }
   }
 
-  // Consume the grant so it cannot be reused. password_reset_allowed only
-  // exists once migration 20260732 has run; without the fallback the whole
-  // update is rejected and password_created is silently left unset too.
-  const consume = await supabase
-    .from('profiles')
-    .update({ password_created: true, password_reset_allowed: false })
-    .eq('id', user.id)
-
-  if (consume.error && /password_reset_allowed/i.test(consume.error.message)) {
-    await supabase.from('profiles').update({ password_created: true }).eq('id', user.id)
-  }
+  // First-login accounts graduate to a normal one.
+  await supabase.from('profiles').update({ password_created: true }).eq('id', user.id)
 
   return {}
 }

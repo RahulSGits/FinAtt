@@ -75,7 +75,7 @@ const LEAVE_TYPES = ['Casual', 'Sick', 'Earned', 'Unpaid', 'Work from home']
 export default function EmployeeDashboardClient({
   userProfile,
   email,
-  canResetPassword,
+  firstLogin,
   employee,
   site,
   shift,
@@ -86,7 +86,7 @@ export default function EmployeeDashboardClient({
 }: {
   userProfile: UserProfile
   email: string
-  canResetPassword: boolean
+  firstLogin: boolean
   employee: Employee | null
   site: Site | null
   shift: Shift | null
@@ -661,7 +661,7 @@ export default function EmployeeDashboardClient({
           shift={shift}
           enrolled={enrolled}
           attemptsLeft={attemptsLeft}
-          canResetPassword={canResetPassword}
+          firstLogin={firstLogin}
           onReEnroll={() => setEnrollOpen(true)}
         />
       )}
@@ -936,7 +936,7 @@ function ProfileSection({
   shift,
   enrolled,
   attemptsLeft,
-  canResetPassword,
+  firstLogin,
   onReEnroll,
 }: {
   employee: Employee | null
@@ -945,7 +945,7 @@ function ProfileSection({
   shift: Shift | null
   enrolled: boolean
   attemptsLeft: number
-  canResetPassword: boolean
+  firstLogin: boolean
   onReEnroll: () => void
 }) {
   const [saving, setSaving] = useState(false)
@@ -1112,7 +1112,7 @@ function ProfileSection({
             )}
           </Panel>
 
-          <ChangePassword allowed={canResetPassword} />
+          <ChangePassword firstLogin={firstLogin} />
 
           <Panel title="Face enrollment">
             <div className="flex items-start gap-3">

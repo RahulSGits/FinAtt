@@ -8,13 +8,16 @@ import { Alert, Panel, Spinner } from './ui'
 const MIN_PASSWORD_LENGTH = 8
 
 /**
- * Self-service password change, shown in the employee and HR profiles.
+ * Self-service password change, shown in every profile.
  *
- * Gated: only available on first login, or once an administrator has granted
- * permission. The same check runs server-side, so hiding the form is a courtesy
- * rather than the control.
+ * `firstLogin` accounts arrived through an invite or reset link and have no
+ * password of their own yet, so they are not asked for a current one. Everyone
+ * else must prove they know it — the same check runs server-side, so omitting
+ * the field here would not bypass anything.
  */
-export default function ChangePassword({ allowed }: { allowed: boolean }) {
+export default function ChangePassword({ firstLogin = false }: { firstLogin?: boolean }) {
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [showCurrent, setShowCurrent] = useState(false)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   // Independent per field: the eye sat only on the first box, so the confirm
@@ -43,6 +46,8 @@ export default function ChangePassword({ allowed }: { allowed: boolean }) {
       setDone(true)
       setPassword('')
       setConfirmPassword('')
+      setCurrentPassword('')
+      setShowCurrent(false)
       setShowNew(false)
       setShowConfirm(false)
     }
@@ -51,17 +56,42 @@ export default function ChangePassword({ allowed }: { allowed: boolean }) {
 
   return (
     <Panel title="Password" subtitle="Change the password you sign in with">
-      {!allowed ? (
-        <Alert tone="info">
-          Your password can only be changed when an administrator grants
-          permission. Ask them to enable it for your account.
-        </Alert>
-      ) : done ? (
+      {done ? (
         <Alert tone="success">
           Password updated. Use the new one next time you sign in.
         </Alert>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
+          {!firstLogin && (
+            <div>
+              <label className="label" htmlFor="cp-current">
+                Current password
+              </label>
+              <div className="relative">
+                <input
+                  id="cp-current"
+                  name="currentPassword"
+                  type={showCurrent ? 'text' : 'password'}
+                  required
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="field pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrent((v) => !v)}
+                  aria-label={showCurrent ? 'Hide current password' : 'Show current password'}
+                  aria-pressed={showCurrent}
+                  className="icon-btn absolute right-1 top-1/2 -translate-y-1/2"
+                >
+                  {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="label" htmlFor="cp-password">
               New password
@@ -135,7 +165,7 @@ export default function ChangePassword({ allowed }: { allowed: boolean }) {
 
           <button
             type="submit"
-            disabled={saving || mismatch || tooShort || !password}
+            disabled={saving || mismatch || tooShort || !password || (!firstLogin && !currentPassword)}
             className="btn btn-primary"
           >
             {saving ? <Spinner size={16} /> : <KeyRound size={16} />} Update password

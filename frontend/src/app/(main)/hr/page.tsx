@@ -146,12 +146,7 @@ export default async function HrPage() {
         department: session.profile?.department ?? null,
         designation: session.profile?.designation ?? null,
         role: session.role,
-        // Admins issue the grants, so they are never gated on one -- the panel
-        // otherwise told the only administrator to go ask an administrator.
-        canResetPassword:
-          session.role === 'admin' ||
-          session.profile?.password_reset_allowed === true ||
-          session.profile?.password_created === false,
+        firstLogin: session.profile?.password_created === false,
       }}
       employees={employees}
       attendance={(attendanceRes.data ?? []) as AttendanceWithEmployee[]}

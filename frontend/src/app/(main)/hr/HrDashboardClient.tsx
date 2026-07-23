@@ -96,7 +96,7 @@ export default function HrDashboardClient({
     department: string | null
     designation: string | null
     role: string
-    canResetPassword: boolean
+    firstLogin: boolean
   }
   employees: EmployeeWithAssignment[]
   attendance: AttendanceWithEmployee[]
@@ -242,12 +242,12 @@ export default function HrDashboardClient({
     { key: 'attendance', label: 'Attendance', icon: CalendarRange },
     { key: 'leaves', label: 'Leave requests', icon: CalendarCheck, badge: pendingLeaves },
     { key: 'announcements', label: 'Announcements', icon: Megaphone },
+    { key: 'members', label: 'Members & access', icon: Shield },
     { key: 'sites', label: 'Work sites', icon: MapPin },
     { key: 'shifts', label: 'Shifts', icon: Clock },
     // Admin-only tiers: role assignment, sign-in activity, diagnostics.
     ...(isAdmin
       ? ([
-          { key: 'members', label: 'Members & access', icon: Shield },
           { key: 'signins', label: 'Sign-in activity', icon: Activity },
           { key: 'diagnostics', label: 'Diagnostics', icon: Wrench },
         ] as NavItem[])
@@ -558,7 +558,7 @@ export default function HrDashboardClient({
         <DiagnosticsSection sql={setupSql} diagnostics={diagnostics} />
       )}
 
-      {active === 'members' && isAdmin && <MembersSection />}
+      {active === 'members' && <MembersSection isAdmin={isAdmin} />}
 
       {active === 'profile' && <MyProfileSection profile={myProfile} />}
 
@@ -611,7 +611,7 @@ function MyProfileSection({
     department: string | null
     designation: string | null
     role: string
-    canResetPassword: boolean
+    firstLogin: boolean
   }
 }) {
   const [saving, setSaving] = useState(false)
@@ -660,7 +660,7 @@ function MyProfileSection({
         </Panel>
 
         <div className="space-y-4">
-          <ChangePassword allowed={profile.canResetPassword} />
+          <ChangePassword firstLogin={profile.firstLogin} />
 
           <Panel title="Account">
           <dl className="grid grid-cols-2 gap-4 text-sm">

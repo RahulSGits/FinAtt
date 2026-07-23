@@ -1270,8 +1270,9 @@ export interface Member {
   full_name: string
   email: string
   role: string
-  /** Null on deployments that have not run the password-reset migration. */
-  password_reset_allowed?: boolean | null
+  account_status?: string | null
+  last_login_at?: string | null
+  login_count?: number | null
 }
 
 /** Every account, for the admin's role-assignment list. Admin-gated by RLS. */
@@ -1283,19 +1284,15 @@ export async function listMembers(): Promise<ActionResult<Member[]>> {
       supabase.from('profiles').select(columns).order('role').order('full_name')
 
     const { data, error } = await query(
-      'id, full_name, email, role, password_reset_allowed',
+      'id, full_name, email, role, account_status, last_login_at, login_count',
     )
     if (!error) return { ok: true, data: (data ?? []) as unknown as Member[] }
 
-    // password_reset_allowed only exists once migration 20260732 has run. Drop
-    // it and show the list without the grant column rather than failing outright.
-    if (/password_reset_allowed/i.test(error.message)) {
-      const retry = await query('id, full_name, email, role')
-      if (retry.error) return fail(retry.error.message)
-      return { ok: true, data: (retry.data ?? []) as unknown as Member[] }
-    }
-
-    return fail(error.message)
+    // Sign-in tracking columns arrive with a later migration. Fall back to the
+    // core fields rather than showing the admin an empty list.
+    const retry = await query('id, full_name, email, role')
+    if (retry.error) return fail(retry.error.message)
+    return { ok: true, data: (retry.data ?? []) as unknown as Member[] }
   } catch (err) {
     return toResult(err)
   }
@@ -1318,7 +1315,6 @@ export async function sendPasswordReset(
 ): Promise<ActionResult<{ emailed: boolean; link?: string }>> {
   try {
     const session = await requireRole('hr')
-    if (session.role !== 'admin') return fail('Only an administrator can reset passwords.')
 
     const email = String(formData.get('email') ?? '').trim().toLowerCase()
     const name = String(formData.get('name') ?? '').trim()
@@ -1364,6 +1360,106 @@ export async function sendPasswordReset(
   }
 }
 
+/**
+ * Admin-only: create an account for anyone and grant them a portal.
+ *
+ * The only route into FinAtt now that public sign-up is gone. Deliberately
+ * never sets a password: the account is created without one and the invitee
+ * follows a link to choose their own, so no password is transmitted, stored
+ * outside Supabase, or known to the administrator who invited them.
+ *
+ * An invited employee also gets a roster row, because the employee portal
+ * needs one to check in against.
+ */
+export async function inviteMember(
+  formData: FormData,
+): Promise<ActionResult<{ emailed: boolean; link?: string }>> {
+  try {
+    const session = await requireRole('hr')
+
+    const email = String(formData.get('email') ?? '').trim().toLowerCase()
+    const name = String(formData.get('name') ?? '').trim()
+    const role = String(formData.get('role') ?? 'employee')
+
+    if (!EMAIL_RE.test(email)) return fail('Enter a valid email address.')
+    if (!name) return fail('Enter their name.')
+    if (!['admin', 'hr', 'employee'].includes(role)) return fail('Pick a valid portal.')
+
+    // Handing out HR or admin access is an administrator's decision. HR can
+    // still onboard employees, which is the part they actually need.
+    if (role !== 'employee' && session.role !== 'admin') {
+      return fail('Only an administrator can grant HR or admin access.')
+    }
+
+    const admin = adminClient()
+    if (!admin) return fail(SERVICE_KEY_HELP)
+
+    const { data: created, error: createError } = await admin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: {
+        full_name: name,
+        role,
+        account_status: 'active',
+        password_created: false,
+      },
+    })
+
+    if (createError || !created?.user) {
+      return fail(
+        /already been registered|already exists/i.test(createError?.message ?? '')
+          ? 'An account already exists for that address. Change their portal from the list instead.'
+          : (createError?.message ?? 'Could not create the account.'),
+      )
+    }
+
+    const userId = created.user.id
+
+    // The signup trigger writes the profile from user_metadata; state it
+    // explicitly so the role is correct even where that trigger is absent.
+    await admin
+      .from('profiles')
+      .upsert({
+        id: userId,
+        full_name: name,
+        email,
+        role,
+        account_status: 'active',
+        password_created: false,
+      })
+      .then(undefined, () => {})
+
+    if (role === 'employee') {
+      await admin
+        .from('employees')
+        .insert({ user_id: userId, full_name: name, email, status: 'active' })
+        .then(undefined, () => {})
+    }
+
+    const { data: linkData } = await admin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: { redirectTo: `${siteUrl()}/auth/callback?next=/set-password` },
+    })
+    const link = linkData?.properties?.action_link
+
+    refresh()
+
+    if (!link) return { ok: true, data: { emailed: false } }
+    if (!emailConfigured()) return { ok: true, data: { emailed: false, link } }
+
+    const sent = await sendInviteEmail({ to: email, name, link, invitedBy: session.name })
+    return { ok: true, data: sent.ok ? { emailed: true } : { emailed: false, link } }
+  } catch (err) {
+    return toResult(err)
+  }
+}
+
+/**
+ * Assign a member's portal. Enforced in Postgres: set_member_role is SECURITY
+ * DEFINER, checks is_admin(), and refuses to demote the last admin -- so even
+ * if this action were reached by a non-admin, the database rejects it.
+ */
 export async function setMemberRole(formData: FormData): Promise<ActionResult> {
   try {
     await requireRole('hr')
