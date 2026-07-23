@@ -6,6 +6,7 @@ import { getSession } from '@/lib/auth'
 import { localDateKey } from '@/lib/format'
 import { usingSandboxSender } from '@/lib/email'
 import HrDashboardClient from './HrDashboardClient'
+import { describeServiceKey, serviceKeyState, serviceKeyUsable } from '@/lib/serviceKey'
 import type {
   Announcement,
   AttendanceWithEmployee,
@@ -155,7 +156,8 @@ export default async function HrPage() {
       statsUnavailable={statsUnavailable}
       setupSql={setupSql}
       diagnostics={{
-        serviceKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+        serviceKey: serviceKeyUsable(),
+        serviceKeyDetail: describeServiceKey(serviceKeyState()),
         email: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
         sandboxSender: usingSandboxSender(),
         siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',

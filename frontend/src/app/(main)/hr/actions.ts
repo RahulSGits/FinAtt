@@ -67,6 +67,8 @@ async function notifyEmployee(
 }
 
 /** A "work from home" leave request, matched loosely on the type text. */
+import { describeServiceKey, serviceKeyState, serviceKeyUsable } from '@/lib/serviceKey'
+
 function isWfhLeave(leaveType: string): boolean {
   return /work\s*from\s*home|wfh|remote/i.test(leaveType)
 }
@@ -81,6 +83,12 @@ function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) return null
+  // A key from another project is well-formed but 401s on every call, which
+  // would surface as a confusing invite failure. Fall back deliberately instead.
+  if (!serviceKeyUsable()) {
+    console.warn('[admin] service key unusable:', describeServiceKey(serviceKeyState()))
+    return null
+  }
   return createAdminClient(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
   })

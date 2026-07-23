@@ -12,6 +12,8 @@ const MIGRATION_PATH = 'supabase/migrations/20260721000000_finatt_full_schema.sq
 
 export interface DiagnosticsData {
   serviceKey: boolean
+  /** Names the actual fault: missing, expired, or from another project. */
+  serviceKeyDetail?: string
   email: boolean
   siteUrl: string
   sandboxSender: boolean
@@ -181,9 +183,10 @@ export default function DiagnosticsSection({
               okText="Configured"
               badText="Missing or rejected"
               detail={
-                diagnostics.serviceKey
+                diagnostics.serviceKeyDetail ??
+                (diagnostics.serviceKey
                   ? 'HR can create employee logins that work immediately.'
-                  : 'Employee logins fall back to signUp, which this project gates behind email confirmation. Add SUPABASE_SERVICE_ROLE_KEY to frontend/.env.local and restart.'
+                  : 'Employee logins fall back to signUp, which this project gates behind email confirmation.')
               }
             />
             <Row
