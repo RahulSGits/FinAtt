@@ -21,7 +21,11 @@
 -- Run in: Supabase dashboard -> SQL Editor -> paste -> Run.
 -- ===========================================================================
 
-create extension if not exists pgcrypto;
+-- Supabase installs pgcrypto into the `extensions` schema, but some projects
+-- have it in `public`. Naming both means crypt()/gen_salt() resolve either way,
+-- instead of failing with "function crypt(...) does not exist".
+create extension if not exists pgcrypto with schema extensions;
+set search_path = public, extensions;
 
 -- ---------------------------------------------------------------------------
 -- 1. Replace the unscannable NULLs.

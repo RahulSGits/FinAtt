@@ -23,6 +23,14 @@ export interface UserProfile {
   role: string
 }
 
+/** Dot colour per notification kind, matching the app's status palette. */
+const TONE_COLORS: Record<string, string> = {
+  info: 'var(--primary)',
+  success: 'var(--success)',
+  warning: 'var(--warning)',
+  error: 'var(--danger)',
+}
+
 export interface Notification {
   id: string
   title: string
@@ -235,8 +243,24 @@ export default function DashboardShell({
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       className="glass-strong absolute right-0 z-50 mt-2 flex max-h-[70vh] w-[min(22rem,calc(100vw-2rem))] origin-top-right flex-col overflow-hidden"
                     >
-                      <div className="border-b border-[var(--border)] px-4 py-3">
-                        <span className="text-sm font-semibold">Notifications</span>
+                      <div className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
+                        <span className="text-sm font-semibold">
+                          Notifications
+                          {badgeCount > 0 && (
+                            <span className="muted ml-1.5 font-normal">
+                              ({badgeCount} new)
+                            </span>
+                          )}
+                        </span>
+                        {badgeCount > 0 && onNotificationsOpen && (
+                          <button
+                            onClick={() => onNotificationsOpen()}
+                            className="text-xs font-medium transition-opacity hover:opacity-70 cursor-pointer"
+                            style={{ color: 'var(--primary)' }}
+                          >
+                            Mark all read
+                          </button>
+                        )}
                       </div>
                       {notifications.length === 0 ? (
                         <div className="muted flex flex-col items-center gap-2 py-10 text-sm">
@@ -245,17 +269,41 @@ export default function DashboardShell({
                         </div>
                       ) : (
                         <ul className="divide-y divide-[var(--border)] overflow-y-auto">
-                          {notifications.map((n) => (
-                            <li key={n.id} className="px-4 py-3">
-                              <div className="flex items-start justify-between gap-2">
-                                <p className="text-sm font-medium">{n.title}</p>
-                                <span className="muted shrink-0 text-[11px]">
-                                  {relativeTime(n.createdAt)}
-                                </span>
-                              </div>
-                              <p className="muted mt-0.5 line-clamp-2 text-xs">{n.body}</p>
-                            </li>
-                          ))}
+                          {notifications.map((n) => {
+                            const unread = n.seen === false
+                            return (
+                              <li
+                                key={n.id}
+                                className="flex gap-2.5 px-4 py-3"
+                                style={
+                                  unread ? { background: 'var(--primary-soft)' } : undefined
+                                }
+                              >
+                                <span
+                                  aria-hidden
+                                  className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                                  style={{
+                                    background: unread
+                                      ? TONE_COLORS[n.tone ?? 'info']
+                                      : 'transparent',
+                                  }}
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p className="text-sm font-medium">{n.title}</p>
+                                    <span className="muted shrink-0 text-[11px]">
+                                      {relativeTime(n.createdAt)}
+                                    </span>
+                                  </div>
+                                  {n.body && (
+                                    <p className="muted mt-0.5 line-clamp-3 text-xs">
+                                      {n.body}
+                                    </p>
+                                  )}
+                                </div>
+                              </li>
+                            )
+                          })}
                         </ul>
                       )}
                     </motion.div>

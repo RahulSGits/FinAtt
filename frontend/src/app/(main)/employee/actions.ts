@@ -451,6 +451,31 @@ export async function checkOut(formData: FormData): Promise<ActionResult<Attenda
 // Leaves
 // ---------------------------------------------------------------------------
 
+/**
+ * Tell HR and admin that this employee needs something.
+ *
+ * Goes through the notify_managers RPC rather than inserting directly: RLS only
+ * lets HR write to notifications, and the function is SECURITY DEFINER with the
+ * recipient list fixed to active hr/admin profiles, so an employee can raise a
+ * flag without being able to write into anyone's feed.
+ *
+ * Failure is swallowed on purpose — a missing RPC on a half-migrated deployment
+ * must never turn a successful leave request into an error the employee sees.
+ */
+async function notifyManagers(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  title: string,
+  body: string,
+  kind: 'info' | 'success' | 'warning' = 'info',
+): Promise<void> {
+  const { error } = await supabase.rpc('notify_managers', {
+    p_title: title,
+    p_body: body,
+    p_kind: kind,
+  })
+  if (error) console.warn('[notify] notify_managers failed:', error.message)
+}
+
 export async function applyLeave(formData: FormData): Promise<ActionResult> {
   try {
     const employee = await requireEmployee()
@@ -489,6 +514,13 @@ export async function applyLeave(formData: FormData): Promise<ActionResult> {
     })
 
     if (error) return fail(error.message)
+
+    await notifyManagers(
+      supabase,
+      'Leave request awaiting approval',
+      `${employee.full_name} requested ${leaveType} leave from ${startDate} to ${endDate}.`,
+      'warning',
+    )
 
     revalidatePath('/employee')
     return { ok: true }
@@ -606,6 +638,13 @@ export async function requestRecheckin(formData: FormData): Promise<ActionResult
           : error.message,
       )
     }
+
+    await notifyManagers(
+      supabase,
+      'Re-check-in request',
+      `${employee.full_name} asked to check in again today${note ? `: ${note}` : '.'}`,
+      'warning',
+    )
 
     revalidatePath('/employee')
     return { ok: true }

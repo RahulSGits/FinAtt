@@ -51,6 +51,10 @@ export function useRealtimeNotifications(userId: string) {
     supabase
       .from('notifications')
       .select('id, title, body, kind, seen, created_at')
+      // Filter explicitly rather than leaning on RLS alone: an HR or admin
+      // policy that grants a wider read would otherwise put the whole company's
+      // feed in this user's bell.
+      .eq('recipient_id', userId)
       .order('created_at', { ascending: false })
       .limit(30)
       .then(({ data }) => {
@@ -115,9 +119,13 @@ export function useRealtimeNotifications(userId: string) {
     setItems((prev) => prev.map((n) => ({ ...n, seen: true })))
 
     if (unseenIds.length > 0) {
-      await supabase.from('notifications').update({ seen: true }).in('id', unseenIds)
+      await supabase
+        .from('notifications')
+        .update({ seen: true })
+        .eq('recipient_id', userId)
+        .in('id', unseenIds)
     }
-  }, [items, supabase])
+  }, [items, supabase, userId])
 
   const unseenCount = items.filter((n) => !n.seen).length
 

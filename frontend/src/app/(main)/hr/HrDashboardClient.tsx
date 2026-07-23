@@ -27,6 +27,7 @@ import DashboardShell, {
 } from '@/components/DashboardShell'
 import LiveClock from '@/components/LiveClock'
 import SetupGuide from '@/components/SetupGuide'
+import { useRealtimeNotifications } from '@/lib/useRealtimeNotifications'
 import ChangePassword from '@/components/ChangePassword'
 import DiagnosticsSection, { type DiagnosticsData } from './sections/DiagnosticsSection'
 import {
@@ -200,7 +201,7 @@ export default function HrDashboardClient({
     )
   }, [attendance])
 
-  const notifications = useMemo<Notification[]>(() => {
+  const derivedNotifications = useMemo<Notification[]>(() => {
     const leaveNotifs = leaves
       .filter((l) => l.status === 'pending')
       .slice(0, 6)
@@ -226,6 +227,14 @@ export default function HrDashboardClient({
 
     return [...leaveNotifs, ...enrollNotif].slice(0, 8)
   }, [leaves, employees])
+
+  // Real notifications from the database (role changes, requests employees
+  // submit, anything another admin did) on top of the derived to-do items above.
+  const live = useRealtimeNotifications(userProfile.id)
+  const notifications = useMemo<Notification[]>(
+    () => [...live.notifications, ...derivedNotifications].slice(0, 30),
+    [live.notifications, derivedNotifications],
+  )
 
   const nav: NavItem[] = [
     { key: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -267,6 +276,8 @@ export default function HrDashboardClient({
       onSelect={setActive}
       userProfile={userProfile}
       notifications={notifications}
+      unseenCount={live.unseenCount}
+      onNotificationsOpen={live.markAllSeen}
     >
       {loadError && (
         <div className="mb-4">
