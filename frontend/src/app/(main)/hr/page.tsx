@@ -57,7 +57,7 @@ async function readSetupSql() {
 export default async function HrPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (session.role !== 'hr') redirect('/employee')
+  if (session.role !== 'hr' && session.role !== 'admin') redirect('/employee')
 
   const supabase = await createClient()
 
@@ -143,6 +143,7 @@ export default async function HrPage() {
       shifts={shifts}
       loadError={loadError}
       needsSetup={needsSetup}
+      isAdmin={session.role === 'admin'}
       loginStats={(statsRes.data ?? []) as LoginStatsRow[]}
       recentLogins={(recentRes.data ?? []) as RecentLogin[]}
       statsUnavailable={statsUnavailable}

@@ -94,6 +94,7 @@ function describeAuthError(error: { message?: string; status?: number; code?: st
 }
 
 function landingFor(role: Role): string {
+  if (role === 'admin') return '/admin'
   return role === 'hr' ? '/hr' : '/employee'
 }
 

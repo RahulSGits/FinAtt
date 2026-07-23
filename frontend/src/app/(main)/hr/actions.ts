@@ -1275,3 +1275,74 @@ export async function decideRecheckin(formData: FormData): Promise<ActionResult>
     return toResult(err)
   }
 }
+
+// ---------------------------------------------------------------------------
+// Role management (admin only)
+// ---------------------------------------------------------------------------
+
+export interface Member {
+  id: string
+  full_name: string
+  email: string
+  role: string
+}
+
+/** Every account, for the admin's role-assignment list. Admin-gated by RLS. */
+export async function listMembers(): Promise<ActionResult<Member[]>> {
+  try {
+    await requireRole('hr') // admin passes (is_hr superset); RLS returns rows only to admin
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, role')
+      .order('role')
+      .order('full_name')
+
+    if (error) return fail(error.message)
+    return { ok: true, data: (data ?? []) as Member[] }
+  } catch (err) {
+    return toResult(err)
+  }
+}
+
+/**
+ * Assign a member's portal. Enforced entirely in Postgres: set_member_role is
+ * SECURITY DEFINER, checks is_admin(), and refuses to demote the last admin —
+ * so even if this action were reached by a non-admin, the DB rejects it.
+ */
+export async function setMemberRole(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireRole('hr')
+    const supabase = await createClient()
+
+    const target = String(formData.get('memberId') ?? '')
+    const role = String(formData.get('role') ?? '')
+    if (!target) return fail('Missing member.')
+    if (!['admin', 'hr', 'employee'].includes(role)) return fail('Pick a valid portal.')
+
+    const { error } = await supabase.rpc('set_member_role', { target, new_role: role })
+    if (error) {
+      return fail(
+        /set_member_role/i.test(error.message)
+          ? 'Role management is not set up on this deployment yet. Run the admin-role migrations.'
+          : error.message,
+      )
+    }
+
+    // target is a profile (user) id, so notify the recipient directly rather
+    // than via the employee lookup in notifyEmployee.
+    await supabase
+      .from('notifications')
+      .insert({
+        recipient_id: target,
+        title: 'Your access changed',
+        body: `An administrator set your portal to "${role}".`,
+        kind: 'info',
+      })
+      .then(undefined, () => {})
+    refresh()
+    return { ok: true }
+  } catch (err) {
+    return toResult(err)
+  }
+}

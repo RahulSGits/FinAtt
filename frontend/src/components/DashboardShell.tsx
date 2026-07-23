@@ -81,7 +81,7 @@ export default function DashboardShell({
     userProfile.role === 'admin'
       ? 'Admin Console'
       : userProfile.role === 'hr'
-        ? 'Admin Console'
+        ? 'HR Console'
         : 'Employee Portal'
   const isDark = resolvedTheme === 'dark'
 

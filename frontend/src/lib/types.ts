@@ -1,6 +1,6 @@
 /** Row shapes mirroring supabase/migrations/20260721000000_finatt_full_schema.sql */
 
-export type Role = 'hr' | 'employee'
+export type Role = 'admin' | 'hr' | 'employee'
 
 /** Portal-wide sign-in counters, from public.portal_login_stats(). */
 export interface LoginStatsRow {

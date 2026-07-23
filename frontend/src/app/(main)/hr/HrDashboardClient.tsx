@@ -14,6 +14,7 @@ import {
   LogIn,
   ScanFace,
   TrendingUp,
+  Shield,
   User,
   UserCheck,
   Wrench,
@@ -65,6 +66,7 @@ import LeavesSection from './sections/LeavesSection'
 import AnnouncementsSection from './sections/AnnouncementsSection'
 import SitesSection from './sections/SitesSection'
 import ShiftsSection from './sections/ShiftsSection'
+import MembersSection from './sections/MembersSection'
 
 export default function HrDashboardClient({
   userProfile,
@@ -77,6 +79,7 @@ export default function HrDashboardClient({
   shifts,
   loadError,
   needsSetup,
+  isAdmin,
   loginStats,
   recentLogins,
   statsUnavailable,
@@ -100,6 +103,7 @@ export default function HrDashboardClient({
   shifts: Shift[]
   loadError: string | null
   needsSetup: boolean
+  isAdmin: boolean
   loginStats: LoginStatsRow[]
   recentLogins: RecentLogin[]
   statsUnavailable: boolean
@@ -222,8 +226,14 @@ export default function HrDashboardClient({
     { key: 'announcements', label: 'Announcements', icon: Megaphone },
     { key: 'sites', label: 'Work sites', icon: MapPin },
     { key: 'shifts', label: 'Shifts', icon: Clock },
-    { key: 'signins', label: 'Sign-in activity', icon: Activity },
-    { key: 'diagnostics', label: 'Diagnostics', icon: Wrench },
+    // Admin-only tiers: role assignment, sign-in activity, diagnostics.
+    ...(isAdmin
+      ? ([
+          { key: 'members', label: 'Members & access', icon: Shield },
+          { key: 'signins', label: 'Sign-in activity', icon: Activity },
+          { key: 'diagnostics', label: 'Diagnostics', icon: Wrench },
+        ] as NavItem[])
+      : []),
     { key: 'profile', label: 'My Profile', icon: User },
   ]
 
@@ -527,6 +537,8 @@ export default function HrDashboardClient({
       {active === 'diagnostics' && (
         <DiagnosticsSection sql={setupSql} diagnostics={diagnostics} />
       )}
+
+      {active === 'members' && isAdmin && <MembersSection />}
 
       {active === 'profile' && <MyProfileSection profile={myProfile} />}
 

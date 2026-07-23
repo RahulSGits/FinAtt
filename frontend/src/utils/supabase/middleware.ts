@@ -61,7 +61,7 @@ export async function updateSession(request: NextRequest) {
   const role = profile?.role ?? user.user_metadata?.role ?? 'employee'
   const passwordCreated =
     profile?.password_created ?? user.user_metadata?.password_created ?? true
-  const home = role === 'hr' ? '/hr' : '/employee'
+  const home = role === 'admin' ? '/admin' : role === 'hr' ? '/hr' : '/employee'
 
   // An invited user must finish setting a password before anything else.
   if (passwordCreated === false && path !== '/set-password' && !path.startsWith('/auth/')) {
@@ -72,9 +72,10 @@ export async function updateSession(request: NextRequest) {
     return redirectTo(passwordCreated === false ? '/set-password' : home)
   }
 
-  // Keep each role inside its own console. HR is the top role and owns
-  // diagnostics; employees only ever see their own portal.
-  if (path.startsWith('/hr') && role !== 'hr') return redirectTo(home)
+  // Portal access. Admin may enter the HR console too (superset); HR may not
+  // enter /admin. Employees only ever see their own portal.
+  if (path.startsWith('/admin') && role !== 'admin') return redirectTo(home)
+  if (path.startsWith('/hr') && !(role === 'hr' || role === 'admin')) return redirectTo(home)
   if (path.startsWith('/employee') && role !== 'employee') return redirectTo(home)
 
   return supabaseResponse
