@@ -151,9 +151,22 @@ export default function Landing() {
           </span>
 
           <h1 className="mt-5 text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl md:text-6xl">
-            Know who was there,
+            {/*
+              The arrows carry the meaning visually but read as noise aloud, so
+              they are hidden from assistive tech and the word "then" is exposed
+              in their place.
+            */}
+            Selfie{' '}
+            <span aria-hidden className="gradient-text">
+              →
+            </span>
+            <span className="sr-only"> then </span> geofence{' '}
+            <span aria-hidden className="gradient-text">
+              →
+            </span>
+            <span className="sr-only"> then </span>
             <br />
-            <span className="gradient-text">and when — for certain.</span>
+            <span className="gradient-text">marked present.</span>
           </h1>
 
           <p className="muted mt-5 max-w-md text-lg">
