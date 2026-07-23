@@ -233,14 +233,22 @@ export async function changeOwnPassword(formData: FormData): Promise<AuthActionS
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('password_created, password_reset_allowed')
+    .select('role, password_created, password_reset_allowed')
     .eq('id', user.id)
-    .maybeSingle<{ password_created: boolean | null; password_reset_allowed: boolean | null }>()
+    .maybeSingle<{
+      role: Role | null
+      password_created: boolean | null
+      password_reset_allowed: boolean | null
+    }>()
 
+  // An admin is the one who issues these grants, so gating them behind one is
+  // circular -- the console told the only administrator to go ask an
+  // administrator. Admins always control their own password.
+  const isAdmin = (profile?.role ?? user.user_metadata?.role) === 'admin'
   const firstTime = profile?.password_created === false
   const granted = profile?.password_reset_allowed === true
 
-  if (!firstTime && !granted) {
+  if (!isAdmin && !firstTime && !granted) {
     return {
       error:
         'Changing your password needs an administrator to grant permission first. Ask them to enable it for your account.',
@@ -257,11 +265,17 @@ export async function changeOwnPassword(formData: FormData): Promise<AuthActionS
     return { error: 'Could not update the password. Please try again.' }
   }
 
-  // Consume the grant so it cannot be reused.
-  await supabase
+  // Consume the grant so it cannot be reused. password_reset_allowed only
+  // exists once migration 20260732 has run; without the fallback the whole
+  // update is rejected and password_created is silently left unset too.
+  const consume = await supabase
     .from('profiles')
     .update({ password_created: true, password_reset_allowed: false })
     .eq('id', user.id)
+
+  if (consume.error && /password_reset_allowed/i.test(consume.error.message)) {
+    await supabase.from('profiles').update({ password_created: true }).eq('id', user.id)
+  }
 
   return {}
 }
