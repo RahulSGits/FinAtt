@@ -160,58 +160,6 @@ export async function login(formData: FormData): Promise<AuthActionState> {
   redirect(passwordCreated === false ? '/set-password' : landingFor(role))
 }
 
-export async function register(formData: FormData): Promise<AuthActionState> {
-  const supabase = await createClient()
-
-  const email = String(formData.get('email') ?? '').trim().toLowerCase()
-  const password = String(formData.get('password') ?? '')
-  const confirmPassword = String(formData.get('confirmPassword') ?? '')
-  const fullName = String(formData.get('fullName') ?? '').trim()
-  const role = String(formData.get('role') ?? 'employee') as Role
-
-  if (!fullName) return { error: 'Enter your full name.' }
-  if (!email) return { error: 'Enter your email address.' }
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    return { error: `Choose a password of at least ${MIN_PASSWORD_LENGTH} characters.` }
-  }
-  if (password !== confirmPassword) return { error: 'The two passwords do not match.' }
-  if (role !== 'hr' && role !== 'employee') return { error: 'Pick a valid account role.' }
-
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-        role,
-        phone: String(formData.get('phone') ?? '').trim(),
-        department: String(formData.get('department') ?? '').trim(),
-        designation: String(formData.get('designation') ?? '').trim(),
-        account_status: 'active',
-        password_created: true,
-      },
-    },
-  })
-
-  if (error) {
-    if (/already registered/i.test(error.message)) {
-      return { error: 'An account already exists for that email. Try signing in instead.' }
-    }
-    if (/password/i.test(error.message)) {
-      return { error: 'Please choose a longer password (at least 8 characters).' }
-    }
-    console.error('[auth] sign-up failed:', error.message)
-    return { error: 'Could not create the account. Please try again or contact your administrator.' }
-  }
-
-  // With email confirmation switched on, signUp returns a user but no session.
-  // Telling the user to check their inbox beats bouncing them to a login form
-  // that will reject them.
-  if (data.user && !data.session) return { needsConfirmation: true }
-
-  redirect(landingFor(role))
-}
-
 export async function logout() {
   const supabase = await createClient()
   await supabase.auth.signOut()

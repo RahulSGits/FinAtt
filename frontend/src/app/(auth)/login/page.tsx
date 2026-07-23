@@ -111,13 +111,8 @@ export default function LoginPage() {
           </form>
 
           <p className="muted mt-6 text-center text-sm">
-            Don&apos;t have an account?{' '}
-            <Link
-              href="/register"
-              className="font-medium text-[var(--primary)] hover:underline"
-            >
-              Create one
-            </Link>
+            Accounts are created by your HR team. If you cannot sign in, ask them
+            to send you an invite.
           </p>
         </motion.div>
       </div>
