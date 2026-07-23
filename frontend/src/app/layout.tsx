@@ -40,7 +40,15 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
-      <body>
+      {/*
+        Browser extensions (password managers, writing assistants, ad blockers)
+        stamp attributes like `bis_register` onto <body> before React hydrates,
+        which React then reports as a server/client attribute mismatch. The
+        markup we render is identical on both sides, so the warning is noise
+        from the visitor's browser rather than a real divergence. Scoped to this
+        one element: a genuine mismatch in the tree below still surfaces.
+      */}
+      <body suppressHydrationWarning>
         <div className="aurora" aria-hidden />
         <div className="grid-overlay" aria-hidden />
         <Providers>{children}</Providers>

@@ -74,14 +74,35 @@ Available at `http://localhost:3000`.
 
 ## Demo accounts
 
-Created by `supabase/seed_demo_accounts.sql`:
+Set by `supabase/seed_demo_roles.sql` and re-applied by `supabase/FIX_LOGIN_500.sql`:
 
-| Role     | Email               | Password   |
-| -------- | ------------------- | ---------- |
-| HR       | `hr@demo.com`       | `demo1234` |
-| Employee | `employee@demo.com` | `demo1234` |
+| Role     | Email               | Password   | Lands on    |
+| -------- | ------------------- | ---------- | ----------- |
+| Admin    | `admin@demo.com`    | `demo1234` | `/admin`    |
+| HR       | `hr@demo.com`       | `demo1234` | `/hr`       |
+| Employee | `employee@demo.com` | `demo1234` | `/employee` |
 
-Anyone can also self-register at `/register` and pick a role.
+### Everyone else
+
+Employee accounts created by HR (invite or CSV import) get the default password
+`finbud@123`, set by migration `20260732000000_login_by_employee_id.sql`. Their
+profile keeps `password_created = false`, so the first sign-in sends them to
+`/set-password` to choose their own. They can sign in with **either** their email
+or their employee ID (e.g. `EMP-0001`).
+
+After that first change, a password can only be changed again once an admin
+grants permission in **Members & access** — the grant is single-use and re-locks
+as soon as the new password is set.
+
+> **Run order matters.** `20260732…` rewrites the password of any employee whose
+> `password_created` is still `false`, so apply it *before* `FIX_LOGIN_500.sql`.
+> Ending with `FIX_LOGIN_500.sql` guarantees the three demo accounts are on
+> `demo1234`.
+
+These are demo credentials for a throwaway project. Change them before putting
+this in front of real users.
+
+Anyone can also self-register at `/register`.
 
 ---
 
