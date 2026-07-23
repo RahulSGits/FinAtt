@@ -271,6 +271,10 @@ export interface Attendance {
   employee_id: string
   /** How the day was actually worked, chosen at check-in. */
   work_mode: WorkMode
+  /** Re-check-in request state: none | requested | approved | denied. */
+  recheckin_status: string
+  recheckin_requested_at: string | null
+  recheckin_note: string | null
   check_in: string | null
   check_out: string | null
   date: string

@@ -8,7 +8,7 @@ import { useToast } from '@/components/Toast'
 import { Alert, Spinner, StatusBadge } from '@/components/ui'
 import { formatDate, statusMeta } from '@/lib/format'
 import type { AttendanceStatus, AttendanceWithEmployee } from '@/lib/types'
-import { editAttendanceTimes, overrideAttendance } from '../actions'
+import { decideRecheckin, editAttendanceTimes, overrideAttendance } from '../actions'
 
 /** Statuses HR may set by hand. `late` is derived from the shift, not chosen. */
 const EDITABLE: AttendanceStatus[] = ['present', 'half', 'absent', 'leave', 'off', 'pending']
@@ -42,8 +42,25 @@ export default function AttendanceStatusEditor({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [recheckBusy, setRecheckBusy] = useState(false)
   const toast = useToast()
   const router = useRouter()
+
+  async function decideRecheck(decision: 'approved' | 'denied') {
+    setRecheckBusy(true)
+    const fd = new FormData()
+    fd.set('attendanceId', record.id)
+    fd.set('decision', decision)
+    const res = await decideRecheckin(fd)
+    if (res.ok) {
+      toast.success(decision === 'approved' ? 'Re-check-in approved.' : 'Re-check-in denied.')
+      setOpen(false)
+      router.refresh()
+    } else {
+      toast.error(res.error)
+    }
+    setRecheckBusy(false)
+  }
 
   // Reset the form to the record's values each time the dialog opens, so a
   // cancelled edit does not bleed into the next one.
@@ -141,6 +158,28 @@ export default function AttendanceStatusEditor({
         size="sm"
       >
         <div className="space-y-4">
+          {/* Pending re-check-in request */}
+          {record.recheckin_status === 'requested' && (
+            <div className="rounded-lg border p-3" style={{ borderColor: 'var(--info)', background: 'color-mix(in srgb, var(--info) 8%, transparent)' }}>
+              <p className="text-sm font-medium">Re-check-in requested</p>
+              <p className="muted mt-0.5 text-xs">
+                {record.employees?.full_name ?? 'This employee'} wants to check in again today.
+                {record.recheckin_note ? ` "${record.recheckin_note}"` : ''}
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button onClick={() => decideRecheck('approved')} disabled={recheckBusy} className="btn btn-success btn-sm">
+                  Approve
+                </button>
+                <button onClick={() => decideRecheck('denied')} disabled={recheckBusy} className="btn btn-danger btn-sm">
+                  Deny
+                </button>
+              </div>
+            </div>
+          )}
+          {record.recheckin_status === 'approved' && (
+            <Alert tone="success">Re-check-in approved — the employee can start another session.</Alert>
+          )}
+
           {/* Status */}
           <div>
             <span className="label">Status</span>

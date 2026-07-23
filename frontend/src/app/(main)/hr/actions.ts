@@ -1197,3 +1197,81 @@ export async function editAttendanceTimes(formData: FormData): Promise<ActionRes
     return toResult(err)
   }
 }
+
+// ---------------------------------------------------------------------------
+// Own profile (HR / admin)
+// ---------------------------------------------------------------------------
+
+/** Let an HR/admin user edit their own name and phone. */
+export async function updateOwnProfile(formData: FormData): Promise<ActionResult> {
+  try {
+    const session = await requireRole('hr')
+    const supabase = await createClient()
+
+    const fullName = String(formData.get('fullName') ?? '').trim()
+    const phone = String(formData.get('phone') ?? '').trim()
+    if (!fullName) return fail('Your name cannot be empty.')
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ full_name: fullName, phone: phone || null })
+      .eq('id', session.userId)
+
+    if (error) return fail(error.message)
+
+    refresh()
+    return { ok: true }
+  } catch (err) {
+    return toResult(err)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Re-check-in approvals
+// ---------------------------------------------------------------------------
+
+/** Approve or deny an employee's request to check in again after clocking out. */
+export async function decideRecheckin(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireRole('hr')
+    const supabase = await createClient()
+
+    const attendanceId = String(formData.get('attendanceId') ?? '')
+    const decision = String(formData.get('decision') ?? '')
+    if (!attendanceId) return fail('Missing record.')
+    if (decision !== 'approved' && decision !== 'denied') {
+      return fail('Decision must be approve or deny.')
+    }
+
+    const { data: row, error: fetchError } = await supabase
+      .from('attendance')
+      .select('id, employee_id, date, recheckin_status')
+      .eq('id', attendanceId)
+      .maybeSingle<{ id: string; employee_id: string; date: string; recheckin_status: string }>()
+
+    if (fetchError) return fail(fetchError.message)
+    if (!row) return fail('That record no longer exists.')
+
+    const { error } = await supabase
+      .from('attendance')
+      .update({ recheckin_status: decision })
+      .eq('id', attendanceId)
+
+    if (error) return fail(error.message)
+
+    await notifyEmployee(
+      supabase,
+      row.employee_id,
+      decision === 'approved' ? 'Re-check-in approved' : 'Re-check-in denied',
+      decision === 'approved'
+        ? `You can check in again for ${row.date}.`
+        : `Your re-check-in request for ${row.date} was declined.`,
+      decision === 'approved' ? 'success' : 'warning',
+    )
+
+    refresh()
+    return { ok: true }
+  } catch (err) {
+    return toResult(err)
+  }
+}

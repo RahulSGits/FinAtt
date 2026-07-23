@@ -14,7 +14,9 @@ import {
   LogIn,
   ScanFace,
   TrendingUp,
+  User,
   UserCheck,
+  Wrench,
   Users,
 } from 'lucide-react'
 import DashboardShell, {
@@ -41,6 +43,10 @@ import {
   StatusBadge,
   staggerContainer,
 } from '@/components/ui'
+import { useToast } from '@/components/Toast'
+import { useRouter } from 'next/navigation'
+import { Spinner } from '@/components/ui'
+import { updateOwnProfile } from './actions'
 import { formatDateTime, formatTime, localDateKey, relativeTime } from '@/lib/format'
 import type {
   Announcement,
@@ -62,6 +68,7 @@ import ShiftsSection from './sections/ShiftsSection'
 
 export default function HrDashboardClient({
   userProfile,
+  myProfile,
   employees,
   attendance,
   leaves,
@@ -77,6 +84,14 @@ export default function HrDashboardClient({
   diagnostics,
 }: {
   userProfile: UserProfile
+  myProfile: {
+    name: string
+    email: string
+    phone: string | null
+    department: string | null
+    designation: string | null
+    role: string
+  }
   employees: EmployeeWithAssignment[]
   attendance: AttendanceWithEmployee[]
   leaves: LeaveWithEmployee[]
@@ -207,6 +222,9 @@ export default function HrDashboardClient({
     { key: 'announcements', label: 'Announcements', icon: Megaphone },
     { key: 'sites', label: 'Work sites', icon: MapPin },
     { key: 'shifts', label: 'Shifts', icon: Clock },
+    { key: 'signins', label: 'Sign-in activity', icon: Activity },
+    { key: 'diagnostics', label: 'Diagnostics', icon: Wrench },
+    { key: 'profile', label: 'My Profile', icon: User },
   ]
 
   if (needsSetup) {
@@ -510,6 +528,8 @@ export default function HrDashboardClient({
         <DiagnosticsSection sql={setupSql} diagnostics={diagnostics} />
       )}
 
+      {active === 'profile' && <MyProfileSection profile={myProfile} />}
+
     </DashboardShell>
   )
 }
@@ -546,5 +566,83 @@ function InfraRow({
     >
       {content}
     </button>
+  )
+}
+
+function MyProfileSection({
+  profile,
+}: {
+  profile: {
+    name: string
+    email: string
+    phone: string | null
+    department: string | null
+    designation: string | null
+    role: string
+  }
+}) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const toast = useToast()
+  const router = useRouter()
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    const res = await updateOwnProfile(new FormData(e.currentTarget))
+    if (res.ok) {
+      toast.success('Profile updated.')
+      router.refresh()
+    } else {
+      setError(res.error)
+    }
+    setSaving(false)
+  }
+
+  return (
+    <>
+      <PageHeader title="My profile" subtitle="Your administrator account details" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel title="Details">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div>
+              <label className="label" htmlFor="hp-name">Full name</label>
+              <input id="hp-name" name="fullName" required defaultValue={profile.name} className="field" />
+            </div>
+            <div>
+              <label className="label" htmlFor="hp-email">Email</label>
+              <input id="hp-email" value={profile.email} readOnly disabled className="field" />
+              <p className="muted mt-1 text-xs">Your sign-in address cannot be changed here.</p>
+            </div>
+            <div>
+              <label className="label" htmlFor="hp-phone">Phone</label>
+              <input id="hp-phone" name="phone" type="tel" defaultValue={profile.phone ?? ''} className="field" />
+            </div>
+            {error && <Alert tone="error">{error}</Alert>}
+            <button type="submit" disabled={saving} className="btn btn-primary">
+              {saving && <Spinner size={16} />} Save changes
+            </button>
+          </form>
+        </Panel>
+
+        <Panel title="Account">
+          <dl className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <dt className="muted mb-0.5 text-xs">Role</dt>
+              <dd className="font-medium capitalize">{profile.role}</dd>
+            </div>
+            <div>
+              <dt className="muted mb-0.5 text-xs">Department</dt>
+              <dd className="font-medium">{profile.department || '—'}</dd>
+            </div>
+            <div>
+              <dt className="muted mb-0.5 text-xs">Designation</dt>
+              <dd className="font-medium">{profile.designation || '—'}</dd>
+            </div>
+          </dl>
+        </Panel>
+      </div>
+    </>
   )
 }

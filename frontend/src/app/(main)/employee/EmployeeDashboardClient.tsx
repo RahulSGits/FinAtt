@@ -65,7 +65,7 @@ import {
   workModeOf,
 } from '@/lib/types'
 import type { Announcement, Attendance, Employee, Leave, Shift, Site } from '@/lib/types'
-import { applyLeave, cancelLeave, checkIn, checkOut, enrollFace, updateMyProfile } from './actions'
+import { applyLeave, cancelLeave, checkIn, checkOut, enrollFace, requestRecheckin, updateMyProfile } from './actions'
 import LiveClock from '@/components/LiveClock'
 import { useRealtimeNotifications } from '@/lib/useRealtimeNotifications'
 
@@ -96,6 +96,7 @@ export default function EmployeeDashboardClient({
   const [checkInOpen, setCheckInOpen] = useState(false)
   const [checkOutOpen, setCheckOutOpen] = useState(false)
   const [reward, setReward] = useState<number | null>(null)
+  const [requestingRecheckin, setRequestingRecheckin] = useState(false)
   const [enrollOpen, setEnrollOpen] = useState(false)
   const toast = useToast()
   const router = useRouter()
@@ -208,6 +209,18 @@ export default function EmployeeDashboardClient({
       return { ok: true }
     }
     return { ok: false, error: res.error }
+  }
+
+  async function handleRequestRecheckin() {
+    setRequestingRecheckin(true)
+    const res = await requestRecheckin(new FormData())
+    if (res.ok) {
+      toast.success('Re-check-in requested. HR will be notified.')
+      router.refresh()
+    } else {
+      toast.error(res.error)
+    }
+    setRequestingRecheckin(false)
   }
 
   async function handleCheckOut(payload: CheckInPayload) {
@@ -348,13 +361,28 @@ export default function EmployeeDashboardClient({
                         ` · ${todayRecord!.session_count} sessions`}
                     </p>
                   </div>
-                  {/* Back from a break — start another session; earlier time is kept. */}
-                  <button
-                    onClick={() => setCheckInOpen(true)}
-                    className="btn btn-ghost mt-2 w-full"
-                  >
-                    <LogIn size={16} /> Check in again
-                  </button>
+                  {/* Re-check-in needs HR approval. Request → wait → resume. */}
+                  {todayRecord?.recheckin_status === 'approved' ? (
+                    <button
+                      onClick={() => setCheckInOpen(true)}
+                      className="btn btn-primary mt-2 w-full"
+                    >
+                      <LogIn size={16} /> Check in again (approved)
+                    </button>
+                  ) : todayRecord?.recheckin_status === 'requested' ? (
+                    <div className="mt-2">
+                      <Alert tone="info">Re-check-in requested — waiting for HR approval.</Alert>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleRequestRecheckin}
+                      disabled={requestingRecheckin}
+                      className="btn btn-ghost mt-2 w-full"
+                    >
+                      {requestingRecheckin ? <Spinner size={16} /> : <LogIn size={16} />}
+                      Request re-check-in
+                    </button>
+                  )}
                 </>
               ) : checkedIn ? (
                 <button

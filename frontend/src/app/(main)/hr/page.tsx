@@ -126,7 +126,15 @@ export default async function HrPage() {
   const setupSql = await readSetupSql()
   return (
     <HrDashboardClient
-      userProfile={{ id: session.userId, name: session.name, role: 'hr' }}
+      userProfile={{ id: session.userId, name: session.name, role: session.role }}
+      myProfile={{
+        name: session.name,
+        email: session.email,
+        phone: session.profile?.phone ?? null,
+        department: session.profile?.department ?? null,
+        designation: session.profile?.designation ?? null,
+        role: session.role,
+      }}
       employees={employees}
       attendance={(attendanceRes.data ?? []) as AttendanceWithEmployee[]}
       leaves={(leavesRes.data ?? []) as LeaveWithEmployee[]}

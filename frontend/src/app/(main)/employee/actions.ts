@@ -176,6 +176,18 @@ export async function checkIn(formData: FormData): Promise<
     // sum of every session, not just the last one.
     const isResuming = Boolean(existing?.check_in && existing?.check_out)
 
+    // A second session needs HR approval. The gate is skipped only when the
+    // recheckin columns are absent (older DB) so re-check-in still works there.
+    if (isResuming && existing && 'recheckin_status' in existing) {
+      if (existing.recheckin_status !== 'approved') {
+        return fail(
+          existing.recheckin_status === 'requested'
+            ? 'Your re-check-in request is awaiting HR approval.'
+            : 'Request a re-check-in and wait for HR to approve it before checking in again.',
+        )
+      }
+    }
+
     if (existing?.check_in && !existing.check_out) {
       return fail('You are already checked in. Check out before checking in again.')
     }
@@ -339,6 +351,15 @@ export async function checkIn(formData: FormData): Promise<
 
     if (error) return fail(error.message)
     if (!data) return fail('Check-in was not saved. Please try again.')
+
+    // Consume a used approval so the next re-check-in needs a fresh request.
+    if (isResuming) {
+      await supabase
+        .from('attendance')
+        .update({ recheckin_status: 'none' })
+        .eq('id', data.id)
+        .then(undefined, () => {}) // best-effort; column may be absent
+    }
 
     // Reward punctuality, but only for an on-site day that the DB trigger did
     // not flag as late. Awarding is idempotent server-side, so a repeated
@@ -533,6 +554,58 @@ export async function updateMyProfile(formData: FormData): Promise<ActionResult>
       .eq('id', employee.id)
 
     if (employeeError) return fail(employeeError.message)
+
+    revalidatePath('/employee')
+    return { ok: true }
+  } catch (err) {
+    return toResult(err)
+  }
+}
+
+/**
+ * Ask HR to allow another check-in after clocking out today. Sets the day's
+ * request state to "requested"; HR approves before the employee can resume.
+ */
+export async function requestRecheckin(formData: FormData): Promise<ActionResult> {
+  try {
+    const employee = await requireEmployee()
+    const supabase = await createClient()
+    const today = localDateKey()
+
+    const { data: existing } = await supabase
+      .from('attendance')
+      .select('id, check_in, check_out, recheckin_status')
+      .eq('employee_id', employee.id)
+      .eq('date', today)
+      .maybeSingle<{ id: string; check_in: string | null; check_out: string | null; recheckin_status: string }>()
+
+    if (!existing?.check_out) {
+      return fail('You can only request a re-check-in after checking out.')
+    }
+    if (existing.recheckin_status === 'requested') {
+      return fail('You already have a re-check-in request pending.')
+    }
+    if (existing.recheckin_status === 'approved') {
+      return fail('Your re-check-in is already approved — check in again.')
+    }
+
+    const note = String(formData.get('note') ?? '').trim()
+    const { error } = await supabase
+      .from('attendance')
+      .update({
+        recheckin_status: 'requested',
+        recheckin_requested_at: new Date().toISOString(),
+        recheckin_note: note || null,
+      })
+      .eq('id', existing.id)
+
+    if (error) {
+      return fail(
+        /recheckin_status/i.test(error.message)
+          ? 'Re-check-in requests are not set up on this deployment yet. Ask HR.'
+          : error.message,
+      )
+    }
 
     revalidatePath('/employee')
     return { ok: true }
