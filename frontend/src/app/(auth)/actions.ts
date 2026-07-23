@@ -170,8 +170,13 @@ export async function login(formData: FormData): Promise<AuthActionState> {
   const { error: statError } = await supabase.rpc('record_login')
   if (statError) console.warn('[login] could not record sign-in:', statError.message)
 
-  // redirect() throws to unwind, so nothing after it runs.
-  redirect(passwordCreated === false ? '/set-password' : landingFor(role))
+  // Land on the dashboard even on the shared default password. Bouncing to
+  // /set-password would force the change at the door, but the change belongs in
+  // the profile where someone can make it when they are ready; the panel there
+  // stays open until they do. Reset links still route through /set-password,
+  // since that flow has a recovery token and no dashboard to fall back to.
+  void passwordCreated
+  redirect(landingFor(role))
 }
 
 export async function logout() {
@@ -251,29 +256,33 @@ export async function changeOwnPassword(formData: FormData): Promise<AuthActionS
     .eq('id', user.id)
     .maybeSingle<{ password_created: boolean | null }>()
 
-  const firstTime = profile?.password_created === false
+  // password_created doubles as "has spent their one change". Everyone starts
+  // on the shared default with it false; the first successful change sets it and
+  // closes the form. After that only an administrator's reset link reopens it,
+  // which is deliberate — it keeps a shared starting password from quietly
+  // becoming a permanent self-service password-change surface.
+  const alreadyChanged = profile?.password_created !== false
 
-  // Changing your own password needs nobody's permission. Requiring an admin
-  // grant was wrong for every role: it left HR unable to rotate a password they
-  // believed was compromised, and was circular for the administrator who issues
-  // the grants in the first place.
-  //
-  // What it does require — except on a first login, where there is no old
-  // password to know — is proof of the current one. Without that, anyone who
-  // reached an unattended session could lock the real owner out of the account.
-  if (!firstTime) {
-    const currentPassword = String(formData.get('currentPassword') ?? '')
-    if (!currentPassword) return { error: 'Enter your current password.' }
-    if (currentPassword === password) {
-      return { error: 'That is already your password. Choose a different one.' }
+  if (alreadyChanged) {
+    return {
+      error:
+        'You have already changed your password. Ask an administrator to send you a reset link if you need to change it again.',
     }
-
-    const { error: wrong } = await createVerificationClient().auth.signInWithPassword({
-      email: user.email ?? '',
-      password: currentPassword,
-    })
-    if (wrong) return { error: 'Your current password is not correct.' }
   }
+
+  // Proof of the current password, so someone reaching an unattended session
+  // cannot spend the one change and lock the real owner out.
+  const currentPassword = String(formData.get('currentPassword') ?? '')
+  if (!currentPassword) return { error: 'Enter your current password.' }
+  if (currentPassword === password) {
+    return { error: 'That is already your password. Choose a different one.' }
+  }
+
+  const { error: wrong } = await createVerificationClient().auth.signInWithPassword({
+    email: user.email ?? '',
+    password: currentPassword,
+  })
+  if (wrong) return { error: 'Your current password is not correct.' }
 
   const { error } = await supabase.auth.updateUser({ password })
   if (error) {

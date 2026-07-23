@@ -336,3 +336,11 @@ export interface Announcement {
 export type ActionResult<T = undefined> =
   | ({ ok: true } & (T extends undefined ? { data?: never } : { data: T }))
   | { ok: false; error: string }
+
+/**
+ * The password every HR and employee account starts on.
+ *
+ * Lives here rather than in the server-actions file: a "use server" module may
+ * only export async functions, so a plain constant there fails the build.
+ */
+export const DEFAULT_PASSWORD = 'finbud@123'

@@ -13,6 +13,7 @@ import {
   sendTestEmail,
   usingSandboxSender,
 } from '@/lib/email'
+import { DEFAULT_PASSWORD } from '@/lib/types'
 import type { ActionResult } from '@/lib/types'
 
 function fail(error: string): ActionResult<never> {
@@ -1341,6 +1342,15 @@ export async function sendPasswordReset(
 
     const link = data.properties.action_link
 
+    // Reopen their one self-service change. Without this the member follows the
+    // link and /set-password bounces them straight back out, because it treats
+    // password_created as "already set up".
+    await admin
+      .from('profiles')
+      .update({ password_created: false })
+      .eq('email', email)
+      .then(undefined, () => {})
+
     if (!emailConfigured()) {
       // Not an error: hand the link back so the reset can still happen.
       return { ok: true, data: { emailed: false, link } }
@@ -1361,12 +1371,12 @@ export async function sendPasswordReset(
 }
 
 /**
- * Admin-only: create an account for anyone and grant them a portal.
+ * Create an account and grant it a portal — the only route into FinAtt now
+ * that public sign-up is gone.
  *
- * The only route into FinAtt now that public sign-up is gone. Deliberately
- * never sets a password: the account is created without one and the invitee
- * follows a link to choose their own, so no password is transmitted, stored
- * outside Supabase, or known to the administrator who invited them.
+ * New accounts start on the shared default password with password_created
+ * false, which is what leaves their one self-service change available. They
+ * sign in with it and change it from their profile when ready.
  *
  * An invited employee also gets a roster row, because the employee portal
  * needs one to check in against.
@@ -1396,6 +1406,7 @@ export async function inviteMember(
 
     const { data: created, error: createError } = await admin.auth.admin.createUser({
       email,
+      password: DEFAULT_PASSWORD,
       email_confirm: true,
       user_metadata: {
         full_name: name,
@@ -1436,20 +1447,18 @@ export async function inviteMember(
         .then(undefined, () => {})
     }
 
-    const { data: linkData } = await admin.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-      options: { redirectTo: `${siteUrl()}/auth/callback?next=/set-password` },
-    })
-    const link = linkData?.properties?.action_link
-
     refresh()
 
-    if (!link) return { ok: true, data: { emailed: false } }
-    if (!emailConfigured()) return { ok: true, data: { emailed: false, link } }
+    if (!emailConfigured()) return { ok: true, data: { emailed: false } }
 
-    const sent = await sendInviteEmail({ to: email, name, link, invitedBy: session.name })
-    return { ok: true, data: sent.ok ? { emailed: true } : { emailed: false, link } }
+    const sent = await sendInviteEmail({
+      to: email,
+      name,
+      link: `${siteUrl()}/login`,
+      invitedBy: session.name,
+      defaultPassword: DEFAULT_PASSWORD,
+    })
+    return { ok: true, data: { emailed: sent.ok } }
   } catch (err) {
     return toResult(err)
   }

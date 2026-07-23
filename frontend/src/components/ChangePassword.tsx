@@ -10,10 +10,11 @@ const MIN_PASSWORD_LENGTH = 8
 /**
  * Self-service password change, shown in every profile.
  *
- * `firstLogin` accounts arrived through an invite or reset link and have no
- * password of their own yet, so they are not asked for a current one. Everyone
- * else must prove they know it — the same check runs server-side, so omitting
- * the field here would not bypass anything.
+ * Everyone starts on the shared default password and gets exactly one change.
+ * `firstLogin` is true while that change is still available; once spent, the
+ * form closes and only an administrator's reset link reopens it. The same rule
+ * is enforced server-side, so closing the form here is presentation, not the
+ * control.
  */
 export default function ChangePassword({ firstLogin = false }: { firstLogin?: boolean }) {
   const [currentPassword, setCurrentPassword] = useState('')
@@ -56,13 +57,18 @@ export default function ChangePassword({ firstLogin = false }: { firstLogin?: bo
 
   return (
     <Panel title="Password" subtitle="Change the password you sign in with">
-      {done ? (
+      {!firstLogin ? (
+        <Alert tone="info">
+          Your password has already been changed. If you need to change it again,
+          ask an administrator to send you a reset link.
+        </Alert>
+      ) : done ? (
         <Alert tone="success">
           Password updated. Use the new one next time you sign in.
         </Alert>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
-          {!firstLogin && (
+          <div>
             <div>
               <label className="label" htmlFor="cp-current">
                 Current password
@@ -89,8 +95,12 @@ export default function ChangePassword({ firstLogin = false }: { firstLogin?: bo
                   {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              <p className="muted mt-1 text-xs">
+                You can change your password once. After that an administrator
+                has to send you a reset link.
+              </p>
             </div>
-          )}
+          </div>
 
           <div>
             <label className="label" htmlFor="cp-password">
@@ -165,7 +175,7 @@ export default function ChangePassword({ firstLogin = false }: { firstLogin?: bo
 
           <button
             type="submit"
-            disabled={saving || mismatch || tooShort || !password || (!firstLogin && !currentPassword)}
+            disabled={saving || mismatch || tooShort || !password || !currentPassword}
             className="btn btn-primary"
           >
             {saving ? <Spinner size={16} /> : <KeyRound size={16} />} Update password

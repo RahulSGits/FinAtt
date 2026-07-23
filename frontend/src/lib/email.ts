@@ -162,9 +162,28 @@ export function sendInviteEmail(opts: {
   name: string
   link: string
   invitedBy?: string
+  /** Present when the account starts on the shared default password. */
+  defaultPassword?: string
 }): Promise<SendResult> {
   const greeting = opts.name ? `Hi ${escapeHtml(opts.name)},` : 'Hi,'
   const by = opts.invitedBy ? ` by ${escapeHtml(opts.invitedBy)}` : ''
+
+  if (opts.defaultPassword) {
+    const pw = escapeHtml(opts.defaultPassword)
+    return send({
+      to: opts.to,
+      subject: 'Your FinAtt account is ready',
+      html: shell(
+        'Your FinAtt account is ready',
+        `<p style="margin:0 0 12px;">${greeting}</p>
+         <p style="margin:0 0 12px;">You've been added to FinAtt${by}. Sign in with your email address and this temporary password:</p>
+         <p style="margin:0 0 12px;font-family:ui-monospace,Menlo,monospace;font-size:16px;font-weight:600;">${pw}</p>
+         <p style="margin:0;">Change it from <strong>My Profile</strong> once you are in. You get one change, so pick something you will remember — after that an administrator has to reset it for you.</p>`,
+        { label: 'Sign in', url: opts.link },
+      ),
+      text: `${greeting}\n\nYou've been added to FinAtt${by ? ` by ${opts.invitedBy}` : ''}.\n\nSign in at ${opts.link} with your email address and this temporary password:\n\n  ${opts.defaultPassword}\n\nChange it from My Profile once you are in. You get one change — after that an administrator has to reset it for you.\n\n— FinAtt`,
+    })
+  }
 
   return send({
     to: opts.to,
