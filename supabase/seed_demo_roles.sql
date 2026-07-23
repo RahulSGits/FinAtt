@@ -23,9 +23,14 @@ create extension if not exists pgcrypto;
 -- ---------------------------------------------------------------------------
 -- 1. Create any missing demo user. Existing ones keep their id.
 -- ---------------------------------------------------------------------------
+-- The empty strings are not cosmetic. GoTrue reads these columns into a Go
+-- `string`, which cannot hold NULL, so a row that leaves them unset makes
+-- every sign-in for that account fail with HTTP 500 "Database error querying
+-- schema" regardless of the password.
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
-  raw_app_meta_data, raw_user_meta_data, created_at, updated_at, is_super_admin
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at, is_super_admin,
+  confirmation_token, recovery_token, email_change, email_change_token_new
 )
 select
   '00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated',
@@ -33,7 +38,8 @@ select
   '{"provider":"email","providers":["email"]}'::jsonb,
   jsonb_build_object('full_name', v.name, 'role', v.role,
                      'account_status', 'active', 'password_created', true),
-  now(), now(), false
+  now(), now(), false,
+  '', '', '', ''
 from (values
   ('admin@demo.com',    'admin',    'Admin Demo'),
   ('hr@demo.com',       'hr',       'HR Demo'),
@@ -49,6 +55,18 @@ update auth.users
        email_confirmed_at = coalesce(email_confirmed_at, now()),
        updated_at = now()
  where lower(email) in ('admin@demo.com', 'hr@demo.com', 'employee@demo.com');
+
+-- 2b. Heal rows an earlier version of this script inserted with NULL tokens.
+--     See FIX_LOGIN_500.sql for the full explanation.
+update auth.users
+   set confirmation_token = coalesce(confirmation_token, ''),
+       recovery_token = coalesce(recovery_token, ''),
+       email_change = coalesce(email_change, ''),
+       email_change_token_new = coalesce(email_change_token_new, '')
+ where confirmation_token is null
+    or recovery_token is null
+    or email_change is null
+    or email_change_token_new is null;
 
 -- ---------------------------------------------------------------------------
 -- 3. Every email user needs an identity, or the grant fails with a 500.

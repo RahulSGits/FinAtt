@@ -67,6 +67,7 @@ import {
 import type { Announcement, Attendance, Employee, Leave, Shift, Site } from '@/lib/types'
 import { applyLeave, cancelLeave, checkIn, checkOut, enrollFace, requestRecheckin, updateMyProfile } from './actions'
 import LiveClock from '@/components/LiveClock'
+import ChangePassword from '@/components/ChangePassword'
 import { useRealtimeNotifications } from '@/lib/useRealtimeNotifications'
 
 const LEAVE_TYPES = ['Casual', 'Sick', 'Earned', 'Unpaid', 'Work from home']
@@ -74,6 +75,7 @@ const LEAVE_TYPES = ['Casual', 'Sick', 'Earned', 'Unpaid', 'Work from home']
 export default function EmployeeDashboardClient({
   userProfile,
   email,
+  canResetPassword,
   employee,
   site,
   shift,
@@ -84,6 +86,7 @@ export default function EmployeeDashboardClient({
 }: {
   userProfile: UserProfile
   email: string
+  canResetPassword: boolean
   employee: Employee | null
   site: Site | null
   shift: Shift | null
@@ -658,6 +661,7 @@ export default function EmployeeDashboardClient({
           shift={shift}
           enrolled={enrolled}
           attemptsLeft={attemptsLeft}
+          canResetPassword={canResetPassword}
           onReEnroll={() => setEnrollOpen(true)}
         />
       )}
@@ -932,6 +936,7 @@ function ProfileSection({
   shift,
   enrolled,
   attemptsLeft,
+  canResetPassword,
   onReEnroll,
 }: {
   employee: Employee | null
@@ -940,6 +945,7 @@ function ProfileSection({
   shift: Shift | null
   enrolled: boolean
   attemptsLeft: number
+  canResetPassword: boolean
   onReEnroll: () => void
 }) {
   const [saving, setSaving] = useState(false)
@@ -1105,6 +1111,8 @@ function ProfileSection({
               </div>
             )}
           </Panel>
+
+          <ChangePassword allowed={canResetPassword} />
 
           <Panel title="Face enrollment">
             <div className="flex items-start gap-3">

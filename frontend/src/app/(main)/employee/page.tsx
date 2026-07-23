@@ -60,6 +60,10 @@ export default async function EmployeePage() {
     <EmployeeDashboardClient
       userProfile={{ id: session.userId, name: session.name, role: 'employee' }}
       email={session.email}
+      canResetPassword={
+        session.profile?.password_reset_allowed === true ||
+        session.profile?.password_created === false
+      }
       employee={employee ?? null}
       site={siteRes.data ?? null}
       shift={shiftRes.data ?? null}

@@ -1285,6 +1285,8 @@ export interface Member {
   full_name: string
   email: string
   role: string
+  /** Null on deployments that have not run the password-reset migration. */
+  password_reset_allowed?: boolean | null
 }
 
 /** Every account, for the admin's role-assignment list. Admin-gated by RLS. */
@@ -1292,14 +1294,72 @@ export async function listMembers(): Promise<ActionResult<Member[]>> {
   try {
     await requireRole('hr') // admin passes (is_hr superset); RLS returns rows only to admin
     const supabase = await createClient()
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, role')
-      .order('role')
-      .order('full_name')
+    const query = (columns: string) =>
+      supabase.from('profiles').select(columns).order('role').order('full_name')
 
-    if (error) return fail(error.message)
-    return { ok: true, data: (data ?? []) as Member[] }
+    const { data, error } = await query(
+      'id, full_name, email, role, password_reset_allowed',
+    )
+    if (!error) return { ok: true, data: (data ?? []) as unknown as Member[] }
+
+    // password_reset_allowed only exists once migration 20260732 has run. Drop
+    // it and show the list without the grant column rather than failing outright.
+    if (/password_reset_allowed/i.test(error.message)) {
+      const retry = await query('id, full_name, email, role')
+      if (retry.error) return fail(retry.error.message)
+      return { ok: true, data: (retry.data ?? []) as unknown as Member[] }
+    }
+
+    return fail(error.message)
+  } catch (err) {
+    return toResult(err)
+  }
+}
+
+/**
+ * Admin-only: let one member change their own password once.
+ *
+ * Same shape of authority as setMemberRole — set_password_reset_permission is
+ * SECURITY DEFINER and re-checks is_admin(), so the grant cannot be made by an
+ * HR user who reaches this action. The grant is single-use: changeOwnPassword
+ * clears it as soon as the password is changed.
+ */
+export async function setPasswordResetPermission(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireRole('hr')
+    const supabase = await createClient()
+
+    const target = String(formData.get('memberId') ?? '')
+    const allowed = String(formData.get('allowed') ?? '') === 'true'
+    if (!target) return fail('Missing member.')
+
+    const { error } = await supabase.rpc('set_password_reset_permission', {
+      target,
+      allowed,
+    })
+    if (error) {
+      return fail(
+        /set_password_reset_permission/i.test(error.message)
+          ? 'Password-reset permissions are not set up on this deployment yet. Run migration 20260732000000_login_by_employee_id.sql.'
+          : error.message,
+      )
+    }
+
+    if (allowed) {
+      await supabase
+        .from('notifications')
+        .insert({
+          recipient_id: target,
+          title: 'You can change your password',
+          body: 'An administrator unlocked password changes for your account. Open your profile to set a new one.',
+          kind: 'info',
+        })
+        .then(undefined, () => {})
+    }
+    refresh()
+    return { ok: true }
   } catch (err) {
     return toResult(err)
   }

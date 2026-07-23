@@ -74,15 +74,15 @@ function describeAuthError(error: { message?: string; status?: number; code?: st
   }
 
   if (/database error querying schema/i.test(message) || (useless && error.status === 500)) {
-    // An auth.users row with no matching auth.identities row — the signature of
-    // an account inserted by raw SQL rather than created through signup.
-    // Deliberately offers the no-SQL route first: most people reading this are
-    // not going to open a database console.
+    // The auth server could not read this account's row at all, so the password
+    // was never even checked. In practice this is an account inserted by raw SQL:
+    // auth.users has varchar columns the auth server reads into a non-nullable
+    // string, and an INSERT that omits them leaves NULLs it cannot scan.
     return (
-      "This account's sign-in record is incomplete on the server, so it can never " +
-      'authenticate — the password is not the problem. Ask an administrator to either ' +
-      'create you a fresh login from the HR console, or repair this one. ' +
-      '(Reference: HTTP 500 "Database error querying schema".)'
+      "The server could not read this account's sign-in record, so the password was " +
+      'never checked — changing it will not help. An administrator can repair every ' +
+      'affected account by running supabase/FIX_LOGIN_500.sql in the Supabase SQL ' +
+      'editor. (Reference: HTTP 500 "Database error querying schema".)'
     )
   }
 
@@ -101,11 +101,23 @@ function landingFor(role: Role): string {
 export async function login(formData: FormData): Promise<AuthActionState> {
   const supabase = await createClient()
 
-  const email = String(formData.get('email') ?? '').trim().toLowerCase()
+  // Accepts an email address or an employee ID (EMP-0001).
+  const identifier = String(formData.get('email') ?? '').trim()
   const password = String(formData.get('password') ?? '')
 
-  if (!email || !password) {
-    return { error: 'Enter both your email and password.' }
+  if (!identifier || !password) {
+    return { error: 'Enter your email or employee ID, and your password.' }
+  }
+
+  let email = identifier.toLowerCase()
+
+  // Resolve an employee ID to its address. Deliberately silent on failure: a
+  // miss falls through to the normal sign-in, which returns the same generic
+  // "not recognised" message as a wrong password, so this cannot be used to
+  // discover which employee IDs exist.
+  if (!identifier.includes('@')) {
+    const { data: resolved } = await supabase.rpc('email_for_login', { identifier })
+    if (typeof resolved === 'string' && resolved) email = resolved.toLowerCase()
   }
 
   let data: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>['data']
@@ -233,4 +245,58 @@ export async function setupPassword(formData: FormData): Promise<AuthActionState
     .maybeSingle<{ role: Role }>()
 
   redirect(landingFor(profile?.role ?? 'employee'))
+}
+
+/**
+ * Change your own password from inside the app.
+ *
+ * Allowed when either:
+ *   - you have not set one yet (first login), or
+ *   - an administrator granted you `password_reset_allowed`.
+ *
+ * The gate is re-checked here rather than trusted from the UI, and the flag is
+ * cleared on success so a grant is single-use.
+ */
+export async function changeOwnPassword(formData: FormData): Promise<AuthActionState> {
+  const supabase = await createClient()
+
+  const password = String(formData.get('password') ?? '')
+  const confirmPassword = String(formData.get('confirmPassword') ?? '')
+
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return { error: `Choose a password of at least ${MIN_PASSWORD_LENGTH} characters.` }
+  }
+  if (password !== confirmPassword) return { error: 'The two passwords do not match.' }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'You are not signed in.' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('password_created, password_reset_allowed')
+    .eq('id', user.id)
+    .maybeSingle<{ password_created: boolean | null; password_reset_allowed: boolean | null }>()
+
+  const firstTime = profile?.password_created === false
+  const granted = profile?.password_reset_allowed === true
+
+  if (!firstTime && !granted) {
+    return {
+      error:
+        'Changing your password needs an administrator to grant permission first. Ask them to enable it for your account.',
+    }
+  }
+
+  const { error } = await supabase.auth.updateUser({ password })
+  if (error) return { error: error.message }
+
+  // Consume the grant so it cannot be reused.
+  await supabase
+    .from('profiles')
+    .update({ password_created: true, password_reset_allowed: false })
+    .eq('id', user.id)
+
+  return {}
 }

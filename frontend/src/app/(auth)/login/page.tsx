@@ -58,17 +58,20 @@ export default function LoginPage() {
 
             <div>
               <label className="label" htmlFor="email">
-                Email address
+                Email or employee ID
               </label>
               <input
                 id="email"
                 name="email"
-                type="email"
-                autoComplete="email"
+                type="text"
+                autoComplete="username"
                 required
-                placeholder="you@company.com"
+                placeholder="you@company.com or EMP-0001"
                 className="field"
               />
+              <p className="muted mt-1 text-xs">
+                Employees can sign in with their employee ID.
+              </p>
             </div>
 
             <div>

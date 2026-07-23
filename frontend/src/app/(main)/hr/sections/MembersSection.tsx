@@ -2,10 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shield, ShieldCheck, User } from 'lucide-react'
+import { KeyRound, Lock, Shield, ShieldCheck, User } from 'lucide-react'
 import { useToast } from '@/components/Toast'
 import { Alert, Avatar, EmptyState, PageHeader, Panel, Spinner } from '@/components/ui'
-import { listMembers, setMemberRole, type Member } from '../actions'
+import {
+  listMembers,
+  setMemberRole,
+  setPasswordResetPermission,
+  type Member,
+} from '../actions'
 
 const ROLES = [
   { value: 'employee', label: 'Employee', icon: User, color: '#059669' },
@@ -25,6 +30,7 @@ export default function MembersSection() {
   const [members, setMembers] = useState<Member[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [resetId, setResetId] = useState<string | null>(null)
   const toast = useToast()
   const router = useRouter()
 
@@ -54,6 +60,34 @@ export default function MembersSection() {
       toast.error(res.error)
     }
     setSavingId(null)
+  }
+
+  async function togglePasswordReset(member: Member) {
+    const allowed = !member.password_reset_allowed
+    setResetId(member.id)
+
+    const fd = new FormData()
+    fd.set('memberId', member.id)
+    fd.set('allowed', String(allowed))
+    const res = await setPasswordResetPermission(fd)
+
+    if (res.ok) {
+      toast.success(
+        allowed
+          ? `${member.full_name || member.email} can now set a new password.`
+          : `Password changes locked for ${member.full_name || member.email}.`,
+      )
+      setMembers((prev) =>
+        prev
+          ? prev.map((m) =>
+              m.id === member.id ? { ...m, password_reset_allowed: allowed } : m,
+            )
+          : prev,
+      )
+    } else {
+      toast.error(res.error)
+    }
+    setResetId(null)
   }
 
   const adminCount = members?.filter((m) => m.role === 'admin').length ?? 0
@@ -87,6 +121,7 @@ export default function MembersSection() {
                 <tr>
                   <th>Member</th>
                   <th>Portal</th>
+                  <th>Password reset</th>
                 </tr>
               </thead>
               <tbody>
@@ -141,6 +176,39 @@ export default function MembersSection() {
                           })}
                         </div>
                       </td>
+                      <td>
+                        <button
+                          onClick={() => togglePasswordReset(member)}
+                          disabled={resetId === member.id}
+                          title={
+                            member.password_reset_allowed
+                              ? 'Revoke permission to change password'
+                              : 'Allow this member to set a new password once'
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 cursor-pointer"
+                          style={
+                            member.password_reset_allowed
+                              ? {
+                                  borderColor: 'transparent',
+                                  background: 'var(--success-soft)',
+                                  color: 'var(--success)',
+                                }
+                              : {
+                                  borderColor: 'var(--border)',
+                                  color: 'var(--text-muted)',
+                                }
+                          }
+                        >
+                          {resetId === member.id ? (
+                            <Spinner size={12} />
+                          ) : member.password_reset_allowed ? (
+                            <KeyRound size={12} />
+                          ) : (
+                            <Lock size={12} />
+                          )}
+                          {member.password_reset_allowed ? 'Allowed' : 'Locked'}
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}
@@ -152,6 +220,8 @@ export default function MembersSection() {
 
       <p className="muted mt-3 text-xs">
         The last administrator cannot be demoted — promote someone else to admin first.
+        Granting a password reset is single-use: it locks again once the member sets
+        their new password.
       </p>
     </>
   )

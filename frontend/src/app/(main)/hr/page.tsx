@@ -137,6 +137,9 @@ export default async function HrPage() {
         department: session.profile?.department ?? null,
         designation: session.profile?.designation ?? null,
         role: session.role,
+        canResetPassword:
+          session.profile?.password_reset_allowed === true ||
+          session.profile?.password_created === false,
       }}
       employees={employees}
       attendance={(attendanceRes.data ?? []) as AttendanceWithEmployee[]}

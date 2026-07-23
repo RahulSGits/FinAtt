@@ -27,6 +27,7 @@ import DashboardShell, {
 } from '@/components/DashboardShell'
 import LiveClock from '@/components/LiveClock'
 import SetupGuide from '@/components/SetupGuide'
+import ChangePassword from '@/components/ChangePassword'
 import DiagnosticsSection, { type DiagnosticsData } from './sections/DiagnosticsSection'
 import {
   AttendanceTrend,
@@ -94,6 +95,7 @@ export default function HrDashboardClient({
     department: string | null
     designation: string | null
     role: string
+    canResetPassword: boolean
   }
   employees: EmployeeWithAssignment[]
   attendance: AttendanceWithEmployee[]
@@ -598,6 +600,7 @@ function MyProfileSection({
     department: string | null
     designation: string | null
     role: string
+    canResetPassword: boolean
   }
 }) {
   const [saving, setSaving] = useState(false)
@@ -645,7 +648,10 @@ function MyProfileSection({
           </form>
         </Panel>
 
-        <Panel title="Account">
+        <div className="space-y-4">
+          <ChangePassword allowed={profile.canResetPassword} />
+
+          <Panel title="Account">
           <dl className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <dt className="muted mb-0.5 text-xs">Role</dt>
@@ -660,7 +666,8 @@ function MyProfileSection({
               <dd className="font-medium">{profile.designation || '—'}</dd>
             </div>
           </dl>
-        </Panel>
+          </Panel>
+        </div>
       </div>
     </>
   )

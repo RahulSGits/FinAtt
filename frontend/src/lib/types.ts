@@ -47,6 +47,8 @@ export interface Profile {
   profile_image: string | null
   account_status: string | null
   password_created: boolean | null
+  /** Admin-granted: lets this user change their own password. Single-use. */
+  password_reset_allowed: boolean | null
   last_login_at: string | null
   login_count: number
   created_at: string
