@@ -14,7 +14,6 @@ import {
   LogIn,
   ScanFace,
   TrendingUp,
-  Wrench,
   UserCheck,
   Users,
 } from 'lucide-react'
@@ -208,8 +207,6 @@ export default function HrDashboardClient({
     { key: 'announcements', label: 'Announcements', icon: Megaphone },
     { key: 'sites', label: 'Work sites', icon: MapPin },
     { key: 'shifts', label: 'Shifts', icon: Clock },
-    { key: 'signins', label: 'Sign-in activity', icon: Activity },
-    { key: 'diagnostics', label: 'Diagnostics', icon: Wrench },
   ]
 
   if (needsSetup) {

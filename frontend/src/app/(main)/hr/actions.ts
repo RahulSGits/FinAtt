@@ -30,6 +30,48 @@ function refresh() {
 }
 
 /**
+ * Notify an employee that HR changed something of theirs.
+ *
+ * Best-effort: a notification is a courtesy, never a reason to fail the action
+ * that triggered it. Keyed to the employee's *user* id (the notifications
+ * recipient), which only exists once they have signed up.
+ */
+async function notifyEmployee(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  employeeId: string,
+  title: string,
+  body: string,
+  kind: 'info' | 'success' | 'warning' = 'info',
+): Promise<void> {
+  try {
+    const { data: emp } = await supabase
+      .from('employees')
+      .select('user_id')
+      .eq('id', employeeId)
+      .maybeSingle<{ user_id: string | null }>()
+
+    if (!emp?.user_id) return
+
+    const { error } = await supabase.from('notifications').insert({
+      recipient_id: emp.user_id,
+      title,
+      body,
+      kind,
+    })
+    if (error && !/could not find the table|notifications/i.test(error.message)) {
+      console.warn('[notify] insert failed:', error.message)
+    }
+  } catch (err) {
+    console.warn('[notify] skipped:', err instanceof Error ? err.message : err)
+  }
+}
+
+/** A "work from home" leave request, matched loosely on the type text. */
+function isWfhLeave(leaveType: string): boolean {
+  return /work\s*from\s*home|wfh|remote/i.test(leaveType)
+}
+
+/**
  * Service-role client for the two operations that genuinely need to bypass RLS:
  * inviting a user and writing their employee row before they have a session.
  * Returns null when the key is absent so callers can explain the gap instead of
@@ -491,6 +533,8 @@ export async function updateEmployee(formData: FormData): Promise<ActionResult> 
 
     if (error) return fail(error.message)
 
+    await notifyEmployee(supabase, id, 'Profile updated', 'HR updated your employee details.')
+
     refresh()
     return { ok: true }
   } catch (err) {
@@ -586,28 +630,70 @@ export async function decideLeave(formData: FormData): Promise<ActionResult> {
 
     // An approved request should show up on the attendance sheet, otherwise the
     // day reads as an unexplained absence in every report.
+    //
+    // A work-from-home request is NOT time off — approving it means the person
+    // is working, remotely. So those days are marked present + remote rather
+    // than "on leave", and the employee can still check in from home. A row is
+    // written with work_mode='remote' but NO manual_override, so a real check-in
+    // recomputes the true hours on top of it.
+    const wfh = isWfhLeave(leave.leave_type)
     if (decision === 'approved') {
-      const days: { employee_id: string; date: string; status: 'leave' }[] = []
+      type DayRow = {
+        employee_id: string
+        date: string
+        status?: 'leave'
+        work_mode?: 'remote'
+        notes?: string
+      }
+      const days: DayRow[] = []
       for (
         let d = new Date(`${leave.start_date}T12:00:00`);
         d <= new Date(`${leave.end_date}T12:00:00`);
         d.setDate(d.getDate() + 1)
       ) {
-        days.push({
-          employee_id: leave.employee_id,
-          date: d.toISOString().slice(0, 10),
-          status: 'leave',
-        })
+        const date = d.toISOString().slice(0, 10)
+        days.push(
+          wfh
+            ? { employee_id: leave.employee_id, date, work_mode: 'remote', notes: 'Approved work from home' }
+            : { employee_id: leave.employee_id, date, status: 'leave' },
+        )
       }
 
-      const { error: markError } = await supabase
+      let { error: markError } = await supabase
         .from('attendance')
         .upsert(days, { onConflict: 'employee_id,date' })
 
+      // work_mode arrives with a later migration; fall back so approval still
+      // records the days even if the column is absent.
+      if (markError && /work_mode/i.test(markError.message)) {
+        const stripped = days.map((d) => {
+          const row = { ...d } as Record<string, unknown>
+          delete row.work_mode
+          return row
+        })
+        ;({ error: markError } = await supabase
+          .from('attendance')
+          .upsert(stripped, { onConflict: 'employee_id,date' }))
+      }
+
       if (markError) {
-        console.warn('[decideLeave] could not mark attendance as leave:', markError.message)
+        console.warn('[decideLeave] could not mark attendance:', markError.message)
       }
     }
+
+    // In-app notification (best-effort, realtime-delivered).
+    await notifyEmployee(
+      supabase,
+      leave.employee_id,
+      decision === 'approved'
+        ? wfh
+          ? 'Work-from-home approved'
+          : 'Leave approved'
+        : 'Leave declined',
+      `Your ${leave.leave_type} request (${leave.start_date} → ${leave.end_date}) was ${decision}.` +
+        (note ? ` Note: ${note}` : ''),
+      decision === 'approved' ? 'success' : 'warning',
+    )
 
     // Notify the employee. Email is best-effort: the decision is already
     // committed, so a provider outage must not surface as a failed approval.
@@ -811,9 +897,20 @@ export async function saveShift(formData: FormData): Promise<ActionResult> {
       is_active: formData.get('isActive') !== 'false',
     }
 
-    const { error } = id
-      ? await supabase.from('shifts').update(payload).eq('id', id)
-      : await supabase.from('shifts').insert(payload)
+    const write = (body: Record<string, unknown>) =>
+      id
+        ? supabase.from('shifts').update(body).eq('id', id)
+        : supabase.from('shifts').insert(body)
+
+    let { error } = await write(payload)
+
+    // work_mode arrives with a later migration; if the column is not there yet,
+    // save the shift without it rather than blocking the edit entirely.
+    if (error && /work_mode/i.test(error.message)) {
+      const core = { ...payload } as Record<string, unknown>
+      delete core.work_mode
+      ;({ error } = await write(core))
+    }
 
     if (error) return fail(error.message)
 
@@ -858,18 +955,42 @@ export async function overrideAttendance(formData: FormData): Promise<ActionResu
     const status = String(formData.get('status') ?? '')
     const note = String(formData.get('note') ?? '').trim()
 
+    const workMode = String(formData.get('workMode') ?? '')
     const allowed = ['present', 'absent', 'half', 'leave', 'off', 'pending']
     if (!employeeId || !date) return fail('Employee and date are both required.')
     if (!allowed.includes(status)) return fail('That is not a valid attendance status.')
 
-    const { error } = await supabase.from('attendance').upsert(
+    const row: Record<string, unknown> = {
+      employee_id: employeeId,
+      date,
+      status,
+      notes: note || null,
       // manual_override stops the auto-status trigger from recomputing this row
       // back to "absent" on the next write.
-      { employee_id: employeeId, date, status, notes: note || null, manual_override: true },
-      { onConflict: 'employee_id,date' },
-    )
+      manual_override: true,
+    }
+    // WFH is recorded as a present day worked remotely, not a separate status.
+    if (workMode === 'remote') row.work_mode = 'remote'
+
+    let { error } = await supabase
+      .from('attendance')
+      .upsert(row, { onConflict: 'employee_id,date' })
+
+    if (error && /work_mode/i.test(error.message)) {
+      delete row.work_mode
+      ;({ error } = await supabase
+        .from('attendance')
+        .upsert(row, { onConflict: 'employee_id,date' }))
+    }
 
     if (error) return fail(error.message)
+
+    await notifyEmployee(
+      supabase,
+      employeeId,
+      'Attendance updated',
+      `HR set your attendance for ${date} to "${status}".`,
+    )
 
     refresh()
     return { ok: true }
@@ -1062,6 +1183,13 @@ export async function editAttendanceTimes(formData: FormData): Promise<ActionRes
     )
 
     if (error) return fail(error.message)
+
+    await notifyEmployee(
+      supabase,
+      employeeId,
+      'Attendance times updated',
+      `HR adjusted your check-in / check-out times for ${date}.`,
+    )
 
     refresh()
     return { ok: true }

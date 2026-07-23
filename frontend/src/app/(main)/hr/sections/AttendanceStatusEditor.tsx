@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Clock, Pencil } from 'lucide-react'
+import { Clock, Home, Pencil } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { useToast } from '@/components/Toast'
 import { Alert, Spinner, StatusBadge } from '@/components/ui'
@@ -36,6 +36,7 @@ export default function AttendanceStatusEditor({
 }) {
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState<AttendanceStatus>(record.status)
+  const [wfh, setWfh] = useState(record.work_mode === 'remote')
   const [checkIn, setCheckIn] = useState(toTimeInput(record.check_in))
   const [checkOut, setCheckOut] = useState(toTimeInput(record.check_out))
   const [saving, setSaving] = useState(false)
@@ -48,6 +49,7 @@ export default function AttendanceStatusEditor({
   // cancelled edit does not bleed into the next one.
   function openEditor() {
     setStatus(record.status)
+    setWfh(record.work_mode === 'remote')
     setCheckIn(toTimeInput(record.check_in))
     setCheckOut(toTimeInput(record.check_out))
     setError(null)
@@ -57,13 +59,14 @@ export default function AttendanceStatusEditor({
   const timesChanged =
     checkIn !== toTimeInput(record.check_in) || checkOut !== toTimeInput(record.check_out)
   const statusChanged = status !== record.status
+  const wfhChanged = wfh !== (record.work_mode === 'remote')
 
   async function save() {
     if (checkIn && checkOut && checkOut <= checkIn) {
       setError('Check-out must be after check-in.')
       return
     }
-    if (!statusChanged && !timesChanged) {
+    if (!statusChanged && !timesChanged && !wfhChanged) {
       setOpen(false)
       return
     }
@@ -88,11 +91,12 @@ export default function AttendanceStatusEditor({
       }
     }
 
-    if (statusChanged) {
+    if (statusChanged || wfhChanged) {
       const fd = new FormData()
       fd.set('employeeId', record.employee_id)
       fd.set('date', record.date)
       fd.set('status', status)
+      if (wfh) fd.set('workMode', 'remote')
       const res = await overrideAttendance(fd)
       if (!res.ok) {
         setError(res.error)
@@ -115,6 +119,14 @@ export default function AttendanceStatusEditor({
         className="group inline-flex items-center gap-1.5 rounded-full transition-opacity hover:opacity-80 cursor-pointer"
       >
         <StatusBadge status={record.status} />
+        {record.work_mode === 'remote' && (
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+            style={{ background: 'color-mix(in srgb, var(--info) 16%, transparent)', color: 'var(--info)' }}
+          >
+            <Home size={9} /> WFH
+          </span>
+        )}
         <Pencil
           size={11}
           className="muted opacity-0 transition-opacity group-hover:opacity-100"
@@ -155,6 +167,23 @@ export default function AttendanceStatusEditor({
                 )
               })}
             </div>
+
+            {/* Work-from-home flag — records the day as worked remotely. */}
+            <label className="mt-2 flex w-fit cursor-pointer items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors"
+              style={{
+                borderColor: wfh ? 'var(--info)' : 'var(--border)',
+                background: wfh ? 'color-mix(in srgb, var(--info) 14%, transparent)' : 'transparent',
+                color: wfh ? 'var(--info)' : 'var(--text-muted)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={wfh}
+                onChange={(e) => setWfh(e.target.checked)}
+                className="sr-only"
+              />
+              <Home size={13} /> Worked from home (WFH)
+            </label>
           </div>
 
           {/* Times — HR only */}
@@ -208,7 +237,7 @@ export default function AttendanceStatusEditor({
             </button>
             <button
               onClick={save}
-              disabled={saving || (!statusChanged && !timesChanged)}
+              disabled={saving || (!statusChanged && !timesChanged && !wfhChanged)}
               className="btn btn-primary"
             >
               {saving && <Spinner size={16} />} Save changes

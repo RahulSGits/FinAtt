@@ -29,6 +29,8 @@ export interface Notification {
   body: string
   createdAt: string
   tone?: 'info' | 'success' | 'warning'
+  /** False until the recipient opens the panel. Drives the unread badge. */
+  seen?: boolean
 }
 
 export default function DashboardShell({
@@ -37,6 +39,8 @@ export default function DashboardShell({
   onSelect,
   userProfile,
   notifications = [],
+  unseenCount,
+  onNotificationsOpen,
   children,
 }: {
   nav: NavItem[]
@@ -44,6 +48,10 @@ export default function DashboardShell({
   onSelect: (key: string) => void
   userProfile: UserProfile
   notifications?: Notification[]
+  /** Overrides the badge count; defaults to unseen-or-all. */
+  unseenCount?: number
+  /** Called when the panel opens, so the parent can mark everything seen. */
+  onNotificationsOpen?: () => void
   children: React.ReactNode
 }) {
   const [sideOpen, setSideOpen] = useState(false)
@@ -61,11 +69,19 @@ export default function DashboardShell({
     return () => mq.removeEventListener('change', onChange)
   }, [])
 
+  // Prefer an explicit count; otherwise derive from the seen flags, and finally
+  // fall back to total for callers still passing plain lists.
+  const badgeCount =
+    unseenCount ??
+    (notifications.some((n) => n.seen !== undefined)
+      ? notifications.filter((n) => !n.seen).length
+      : notifications.length)
+
   const roleLabel =
     userProfile.role === 'admin'
       ? 'Admin Console'
       : userProfile.role === 'hr'
-        ? 'HR Console'
+        ? 'Admin Console'
         : 'Employee Portal'
   const isDark = resolvedTheme === 'dark'
 
@@ -182,18 +198,24 @@ export default function DashboardShell({
 
             <div className="relative">
               <button
-                onClick={() => setNotifOpen((v) => !v)}
-                aria-label={`Notifications${notifications.length ? `, ${notifications.length} unread` : ''}`}
+                onClick={() => {
+                  const next = !notifOpen
+                  setNotifOpen(next)
+                  // Mark seen when opening, matching the "clicking the button
+                  // marks as seen" behaviour.
+                  if (next) onNotificationsOpen?.()
+                }}
+                aria-label={`Notifications${badgeCount ? `, ${badgeCount} unread` : ''}`}
                 aria-expanded={notifOpen}
                 className="touch-target muted relative rounded-lg transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)] cursor-pointer"
               >
                 <Bell size={18} />
-                {notifications.length > 0 && (
+                {badgeCount > 0 && (
                   <span
                     className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
                     style={{ background: 'var(--danger)' }}
                   >
-                    {notifications.length > 9 ? '9+' : notifications.length}
+                    {badgeCount > 9 ? '9+' : badgeCount}
                   </span>
                 )}
               </button>

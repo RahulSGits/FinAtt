@@ -67,6 +67,7 @@ import {
 import type { Announcement, Attendance, Employee, Leave, Shift, Site } from '@/lib/types'
 import { applyLeave, cancelLeave, checkIn, checkOut, enrollFace, updateMyProfile } from './actions'
 import LiveClock from '@/components/LiveClock'
+import { useRealtimeNotifications } from '@/lib/useRealtimeNotifications'
 
 const LEAVE_TYPES = ['Casual', 'Sick', 'Earned', 'Unpaid', 'Work from home']
 
@@ -129,7 +130,9 @@ export default function EmployeeDashboardClient({
 
   const pendingLeaves = leaves.filter((l) => l.status === 'pending').length
 
-  const notifications = useMemo<Notification[]>(() => {
+  const live = useRealtimeNotifications(userProfile.id)
+
+  const derived = useMemo<Notification[]>(() => {
     const fromAnnouncements = announcements.slice(0, 5).map((a) => ({
       id: `ann-${a.id}`,
       title: a.title,
@@ -149,6 +152,10 @@ export default function EmployeeDashboardClient({
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 8)
   }, [announcements, leaves])
+
+  // Prefer the realtime feed once it has anything; fall back to the derived
+  // list so the bell is never empty before the notifications table is in use.
+  const notifications = live.notifications.length > 0 ? live.notifications : derived
 
   const nav: NavItem[] = [
     { key: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -242,6 +249,8 @@ export default function EmployeeDashboardClient({
       onSelect={setActive}
       userProfile={userProfile}
       notifications={notifications}
+      unseenCount={live.notifications.length > 0 ? live.unseenCount : undefined}
+      onNotificationsOpen={live.markAllSeen}
     >
       {/* ══ Overview ══════════════════════════════════════════════════════ */}
       {active === 'overview' && (
