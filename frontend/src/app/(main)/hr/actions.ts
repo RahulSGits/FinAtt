@@ -9,6 +9,7 @@ import {
   EMAIL_SETUP_HELP,
   sendInviteEmail,
   sendLeaveDecisionEmail,
+  sendPasswordResetEmail,
   sendTestEmail,
   usingSandboxSender,
 } from '@/lib/email'
@@ -320,30 +321,6 @@ export async function createEmployeeLogin(
         needsConfirmation: !data.session,
       },
     }
-  } catch (err) {
-    return toResult(err)
-  }
-}
-
-/** Email an existing account a password-reset link. */
-export async function sendPasswordReset(formData: FormData): Promise<ActionResult> {
-  try {
-    await requireRole('hr')
-    const email = String(formData.get('email') ?? '').trim().toLowerCase()
-    if (!EMAIL_RE.test(email)) return fail('That is not a valid email address.')
-
-    const anon = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } },
-    )
-
-    const { error } = await anon.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteUrl()}/auth/callback`,
-    })
-
-    if (error) return fail(error.message)
-    return { ok: true }
   } catch (err) {
     return toResult(err)
   }
@@ -1325,59 +1302,68 @@ export async function listMembers(): Promise<ActionResult<Member[]>> {
 }
 
 /**
- * Admin-only: let one member change their own password once.
+ * Admin-only: send a member a link to choose a new password.
  *
- * Same shape of authority as setMemberRole — set_password_reset_permission is
- * SECURITY DEFINER and re-checks is_admin(), so the grant cannot be made by an
- * HR user who reaches this action. The grant is single-use: changeOwnPassword
- * clears it as soon as the password is changed.
+ * Replaces the grant toggle as the primary route. The toggle depends on
+ * set_password_reset_permission, which only exists once migration 20260732 has
+ * run; this works on any deployment because it uses GoTrue's own recovery link.
+ *
+ * The admin never sees or sets the member's password — the member follows the
+ * link and chooses it themselves, so the password exists only in their head.
+ * If email is not configured the link is returned instead, so an administrator
+ * can still pass it on rather than being blocked.
  */
-export async function setPasswordResetPermission(
+export async function sendPasswordReset(
   formData: FormData,
-): Promise<ActionResult> {
+): Promise<ActionResult<{ emailed: boolean; link?: string }>> {
   try {
-    await requireRole('hr')
-    const supabase = await createClient()
+    const session = await requireRole('hr')
+    if (session.role !== 'admin') return fail('Only an administrator can reset passwords.')
 
-    const target = String(formData.get('memberId') ?? '')
-    const allowed = String(formData.get('allowed') ?? '') === 'true'
-    if (!target) return fail('Missing member.')
+    const email = String(formData.get('email') ?? '').trim().toLowerCase()
+    const name = String(formData.get('name') ?? '').trim()
+    if (!email) return fail('Missing email address.')
 
-    const { error } = await supabase.rpc('set_password_reset_permission', {
-      target,
-      allowed,
+    const admin = adminClient()
+    if (!admin) return fail(SERVICE_KEY_HELP)
+
+    // A recovery link, generated server-side. type=recovery keeps any existing
+    // password working until the link is actually used.
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: { redirectTo: `${siteUrl()}/auth/callback?next=/set-password` },
     })
-    if (error) {
+
+    if (error || !data?.properties?.action_link) {
       return fail(
-        /set_password_reset_permission/i.test(error.message)
-          ? 'Password-reset permissions are not set up on this deployment yet. Run migration 20260732000000_login_by_employee_id.sql.'
-          : error.message,
+        /not found/i.test(error?.message ?? '')
+          ? 'No sign-in account exists for that address yet.'
+          : (error?.message ?? 'Could not generate a reset link.'),
       )
     }
 
-    if (allowed) {
-      await supabase
-        .from('notifications')
-        .insert({
-          recipient_id: target,
-          title: 'You can change your password',
-          body: 'An administrator unlocked password changes for your account. Open your profile to set a new one.',
-          kind: 'info',
-        })
-        .then(undefined, () => {})
+    const link = data.properties.action_link
+
+    if (!emailConfigured()) {
+      // Not an error: hand the link back so the reset can still happen.
+      return { ok: true, data: { emailed: false, link } }
     }
-    refresh()
-    return { ok: true }
+
+    const sent = await sendPasswordResetEmail({
+      to: email,
+      name,
+      link,
+      resetBy: session.name,
+    })
+    if (!sent.ok) return { ok: true, data: { emailed: false, link } }
+
+    return { ok: true, data: { emailed: true } }
   } catch (err) {
     return toResult(err)
   }
 }
 
-/**
- * Assign a member's portal. Enforced entirely in Postgres: set_member_role is
- * SECURITY DEFINER, checks is_admin(), and refuses to demote the last admin —
- * so even if this action were reached by a non-admin, the DB rejects it.
- */
 export async function setMemberRole(formData: FormData): Promise<ActionResult> {
   try {
     await requireRole('hr')

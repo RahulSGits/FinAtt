@@ -1,6 +1,7 @@
 'use client'
 
 import { motion, useReducedMotion } from 'motion/react'
+import { Search as SearchIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { AttendanceStatus, LeaveStatus, Priority } from '@/lib/types'
 import {
@@ -458,6 +459,44 @@ export function SegmentedControl<T extends string>({
           </button>
         )
       })}
+    </div>
+  )
+}
+
+/**
+ * Search box used by every filterable list.
+ *
+ * Extracted so the sections that gained filtering later match the ones that
+ * always had it — same icon inset, same padding, same affordances — rather than
+ * each growing a slightly different input.
+ */
+export function SearchInput({
+  value,
+  onChange,
+  placeholder,
+  label,
+  className = '',
+}: {
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  label: string
+  className?: string
+}) {
+  return (
+    <div className={`relative min-w-[200px] flex-1 ${className}`}>
+      <SearchIcon
+        size={15}
+        className="muted pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+      />
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={label}
+        className="field pl-9"
+      />
     </div>
   )
 }

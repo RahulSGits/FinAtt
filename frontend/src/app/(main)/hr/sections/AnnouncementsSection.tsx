@@ -6,16 +6,7 @@ import { Megaphone, Plus, Trash2 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/Toast'
-import {
-  Alert,
-  EmptyState,
-  PageHeader,
-  Panel,
-  PriorityBadge,
-  Spinner,
-  staggerContainer,
-  staggerItem,
-} from '@/components/ui'
+import { Alert, EmptyState, PageHeader, Panel, PriorityBadge, SearchInput, Spinner, staggerContainer, staggerItem } from '@/components/ui'
 import { formatDateTime } from '@/lib/format'
 import type { Announcement } from '@/lib/types'
 import { createAnnouncement, deleteAnnouncement } from '../actions'
@@ -25,9 +16,17 @@ export default function AnnouncementsSection({
 }: {
   announcements: Announcement[]
 }) {
+  const [query, setQuery] = useState('')
   const [composing, setComposing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Announcement | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  const needle = query.trim().toLowerCase()
+  const shown = needle
+    ? announcements.filter((a) =>
+        `${a.title} ${a.description ?? ''}`.toLowerCase().includes(needle),
+      )
+    : announcements
   const toast = useToast()
   const router = useRouter()
 
@@ -61,6 +60,22 @@ export default function AnnouncementsSection({
         }
       />
 
+      {announcements.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search announcements"
+            label="Search announcements"
+          />
+          {query && (
+            <span className="muted text-xs">
+              {shown.length} of {announcements.length}
+            </span>
+          )}
+        </div>
+      )}
+
       {announcements.length === 0 ? (
         <Panel>
           <EmptyState
@@ -81,7 +96,7 @@ export default function AnnouncementsSection({
           animate="show"
           className="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
         >
-          {announcements.map((a) => (
+          {shown.map((a) => (
             <motion.article key={a.id} variants={staggerItem} className="card lift p-4">
               <div className="mb-1.5 flex items-start gap-2">
                 <h3 className="min-w-0 flex-1 font-medium">{a.title}</h3>

@@ -2,15 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { KeyRound, Lock, Shield, ShieldCheck, User } from 'lucide-react'
+import { Mail, Shield, ShieldCheck, User } from 'lucide-react'
 import { useToast } from '@/components/Toast'
 import { Alert, Avatar, EmptyState, PageHeader, Panel, Spinner } from '@/components/ui'
-import {
-  listMembers,
-  setMemberRole,
-  setPasswordResetPermission,
-  type Member,
-} from '../actions'
+import { listMembers, sendPasswordReset, setMemberRole, type Member } from '../actions'
 
 const ROLES = [
   { value: 'employee', label: 'Employee', icon: User, color: '#059669' },
@@ -62,30 +57,23 @@ export default function MembersSection() {
     setSavingId(null)
   }
 
-  async function togglePasswordReset(member: Member) {
-    const allowed = !member.password_reset_allowed
+  async function resetPassword(member: Member) {
     setResetId(member.id)
 
     const fd = new FormData()
-    fd.set('memberId', member.id)
-    fd.set('allowed', String(allowed))
-    const res = await setPasswordResetPermission(fd)
+    fd.set('email', member.email)
+    fd.set('name', member.full_name ?? '')
+    const res = await sendPasswordReset(fd)
 
-    if (res.ok) {
-      toast.success(
-        allowed
-          ? `${member.full_name || member.email} can now set a new password.`
-          : `Password changes locked for ${member.full_name || member.email}.`,
-      )
-      setMembers((prev) =>
-        prev
-          ? prev.map((m) =>
-              m.id === member.id ? { ...m, password_reset_allowed: allowed } : m,
-            )
-          : prev,
-      )
-    } else {
+    if (!res.ok) {
       toast.error(res.error)
+    } else if (res.data?.emailed) {
+      toast.success(`Reset link sent to ${member.email}.`)
+    } else if (res.data?.link) {
+      // Email is off or the send failed. The link still works, so surface it
+      // rather than leaving the admin with nothing.
+      await navigator.clipboard?.writeText(res.data.link).catch(() => {})
+      toast.success('Email is not configured — reset link copied to your clipboard.')
     }
     setResetId(null)
   }
@@ -121,7 +109,7 @@ export default function MembersSection() {
                 <tr>
                   <th>Member</th>
                   <th>Portal</th>
-                  <th>Password reset</th>
+                  <th>Password</th>
                 </tr>
               </thead>
               <tbody>
@@ -178,35 +166,18 @@ export default function MembersSection() {
                       </td>
                       <td>
                         <button
-                          onClick={() => togglePasswordReset(member)}
+                          onClick={() => resetPassword(member)}
                           disabled={resetId === member.id}
-                          title={
-                            member.password_reset_allowed
-                              ? 'Revoke permission to change password'
-                              : 'Allow this member to set a new password once'
-                          }
+                          title={`Email ${member.email} a link to choose a new password`}
                           className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 cursor-pointer"
-                          style={
-                            member.password_reset_allowed
-                              ? {
-                                  borderColor: 'transparent',
-                                  background: 'var(--success-soft)',
-                                  color: 'var(--success)',
-                                }
-                              : {
-                                  borderColor: 'var(--border)',
-                                  color: 'var(--text-muted)',
-                                }
-                          }
+                          style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
                         >
                           {resetId === member.id ? (
                             <Spinner size={12} />
-                          ) : member.password_reset_allowed ? (
-                            <KeyRound size={12} />
                           ) : (
-                            <Lock size={12} />
+                            <Mail size={12} />
                           )}
-                          {member.password_reset_allowed ? 'Allowed' : 'Locked'}
+                          Send reset link
                         </button>
                       </td>
                     </tr>
@@ -220,8 +191,8 @@ export default function MembersSection() {
 
       <p className="muted mt-3 text-xs">
         The last administrator cannot be demoted — promote someone else to admin first.
-        Granting a password reset is single-use: it locks again once the member sets
-        their new password.
+        A reset link lets the member choose their own password, so nobody else ever
+        knows it. Their current password keeps working until the link is used.
       </p>
     </>
   )

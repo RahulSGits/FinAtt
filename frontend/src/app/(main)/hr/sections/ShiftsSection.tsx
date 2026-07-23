@@ -5,17 +5,25 @@ import { Building2, Clock, Home, Laptop, Pencil, Plus, Trash2 } from 'lucide-rea
 import Modal from '@/components/Modal'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/Toast'
-import { Alert, EmptyState, PageHeader, Panel, Pill, Spinner } from '@/components/ui'
+import { Alert, EmptyState, PageHeader, Panel, Pill, SearchInput, Spinner } from '@/components/ui'
 import { formatDuration, formatShiftTime, WEEKDAY_LABELS } from '@/lib/format'
 import { workModeMeta, workModeOf } from '@/lib/types'
 import type { Shift, WorkMode } from '@/lib/types'
 import { deleteShift, saveShift } from '../actions'
 
 export default function ShiftsSection({ shifts }: { shifts: Shift[] }) {
+  const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<Shift | null>(null)
   const [creating, setCreating] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Shift | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  const needle = query.trim().toLowerCase()
+  const shown = needle
+    ? shifts.filter((s) =>
+        `${s.name} ${s.start_time ?? ''} ${s.end_time ?? ''}`.toLowerCase().includes(needle),
+      )
+    : shifts
   const toast = useToast()
   const router = useRouter()
 
@@ -49,6 +57,22 @@ export default function ShiftsSection({ shifts }: { shifts: Shift[] }) {
         }
       />
 
+      {shifts.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search shifts by name or time"
+            label="Search shifts"
+          />
+          {query && (
+            <span className="muted text-xs">
+              {shown.length} of {shifts.length}
+            </span>
+          )}
+        </div>
+      )}
+
       {shifts.length === 0 ? (
         <Panel>
           <EmptyState
@@ -64,7 +88,7 @@ export default function ShiftsSection({ shifts }: { shifts: Shift[] }) {
         </Panel>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {shifts.map((shift) => (
+          {shown.map((shift) => (
             <article
               key={shift.id}
               className="card lift relative overflow-hidden p-4"

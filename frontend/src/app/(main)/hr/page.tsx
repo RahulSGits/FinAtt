@@ -91,9 +91,13 @@ export default async function HrPage() {
 
   // Login stats live behind RPCs added by a later migration; their absence is a
   // "not installed yet" state, not an error the user can act on differently.
-  const [statsRes, recentRes] = await Promise.all([
+  const [statsRes, recentRes, adminsRes] = await Promise.all([
     supabase.rpc('portal_login_stats'),
     supabase.rpc('recent_logins', { limit_count: 25 }),
+    // Administrators are staff, not workforce: they have no shift, no site and
+    // never check in. A stray employees row for one would inflate the headcount
+    // and every attendance percentage derived from it.
+    supabase.from('profiles').select('id').eq('role', 'admin'),
   ])
   const statsUnavailable = /portal_login_stats|recent_logins/i.test(
     statsRes.error?.message ?? '',
@@ -105,13 +109,17 @@ export default async function HrPage() {
   const siteById = new Map(sites.map((s) => [s.id, s]))
   const shiftById = new Map(shifts.map((s) => [s.id, s]))
 
-  const employees: EmployeeWithAssignment[] = ((employeesRes.data ?? []) as Employee[]).map(
-    (employee) => ({
+  const adminUserIds = new Set(
+    ((adminsRes.data ?? []) as { id: string }[]).map((p) => p.id),
+  )
+
+  const employees: EmployeeWithAssignment[] = ((employeesRes.data ?? []) as Employee[])
+    .filter((employee) => !employee.user_id || !adminUserIds.has(employee.user_id))
+    .map((employee) => ({
       ...employee,
       sites: employee.site_id ? (siteById.get(employee.site_id) ?? null) : null,
       shifts: employee.shift_id ? (shiftById.get(employee.shift_id) ?? null) : null,
-    }),
-  )
+    }))
 
   // Only the roster query decides whether this is a setup problem — the others
   // may legitimately be empty on a fresh install.

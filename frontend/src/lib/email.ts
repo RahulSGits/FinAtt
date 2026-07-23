@@ -233,3 +233,27 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
 }
+
+/** Send someone a link to choose a new password. */
+export function sendPasswordResetEmail(opts: {
+  to: string
+  name: string
+  link: string
+  resetBy?: string
+}): Promise<SendResult> {
+  const greeting = opts.name ? `Hi ${escapeHtml(opts.name)},` : 'Hi,'
+  const by = opts.resetBy ? ` by ${escapeHtml(opts.resetBy)}` : ''
+
+  return send({
+    to: opts.to,
+    subject: 'Reset your FinAtt password',
+    html: shell(
+      'Choose a new password',
+      `<p style="margin:0 0 12px;">${greeting}</p>
+       <p style="margin:0 0 12px;">A password reset was requested for your FinAtt account${by}. Follow the link to choose a new one.</p>
+       <p style="margin:0;">This link expires in 24 hours. If you did not expect this, you can ignore this email — your current password stays active until the link is used.</p>`,
+      { label: 'Choose a new password', url: opts.link },
+    ),
+    text: `${greeting}\n\nA password reset was requested for your FinAtt account${by ? ` by ${opts.resetBy}` : ''}. Choose a new password here (expires in 24 hours):\n\n${opts.link}\n\nIf you did not expect this, ignore this email.\n\n— FinAtt`,
+  })
+}

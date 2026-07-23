@@ -6,7 +6,7 @@ import { Building2, Crosshair, Home, MapPin, Pencil, Plus, Trash2 } from 'lucide
 import Modal from '@/components/Modal'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/Toast'
-import { Alert, EmptyState, PageHeader, Panel, Pill, Spinner } from '@/components/ui'
+import { Alert, EmptyState, PageHeader, Panel, Pill, SearchInput, Spinner } from '@/components/ui'
 import AddressSearch from '@/components/AddressSearch'
 import SitePicker from '@/components/SitePicker'
 import { getCurrentPosition } from '@/lib/geo'
@@ -21,10 +21,18 @@ const SiteMap = dynamic(() => import('@/components/SiteMap'), {
 })
 
 export default function SitesSection({ sites }: { sites: Site[] }) {
+  const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<Site | null>(null)
   const [creating, setCreating] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Site | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  const needle = query.trim().toLowerCase()
+  const shown = needle
+    ? sites.filter((s) =>
+        `${s.name} ${s.address ?? ''} ${siteKindOf(s)}`.toLowerCase().includes(needle),
+      )
+    : sites
   const toast = useToast()
   const router = useRouter()
 
@@ -58,6 +66,22 @@ export default function SitesSection({ sites }: { sites: Site[] }) {
         }
       />
 
+      {sites.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search sites by name, address or type"
+            label="Search work sites"
+          />
+          {query && (
+            <span className="muted text-xs">
+              {shown.length} of {sites.length}
+            </span>
+          )}
+        </div>
+      )}
+
       {sites.length === 0 ? (
         <Panel>
           <EmptyState
@@ -73,7 +97,7 @@ export default function SitesSection({ sites }: { sites: Site[] }) {
         </Panel>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {sites.map((site) => (
+          {shown.map((site) => (
             <Panel
               key={site.id}
               className="relative overflow-hidden"
