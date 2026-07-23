@@ -59,11 +59,30 @@ export async function requireSession(): Promise<Session> {
   return session
 }
 
-/** Throw unless the signed-in user holds `role`. */
+/**
+ * Whether `held` satisfies a requirement for `needed`.
+ *
+ * Admin is a superset of HR — it mirrors the database's own is_hr(), which
+ * returns true for both. Without this, an admin failed every HR-gated action
+ * ("This action requires the hr role.") even though the DB would have allowed
+ * it, because the check was an exact string match.
+ *
+ * `employee` stays exact: an admin is not an employee and has no employees row,
+ * so employee actions (check-in, leave) must not silently accept them.
+ */
+export function roleSatisfies(held: Role, needed: Role): boolean {
+  if (held === needed) return true
+  return needed === 'hr' && held === 'admin'
+}
+
 export async function requireRole(role: Role): Promise<Session> {
   const session = await requireSession()
-  if (session.role !== role) {
-    throw new AuthError(`This action requires the ${role} role.`)
+  if (!roleSatisfies(session.role, role)) {
+    throw new AuthError(
+      role === 'hr'
+        ? 'This action requires the HR or admin role.'
+        : `This action requires the ${role} role.`,
+    )
   }
   return session
 }

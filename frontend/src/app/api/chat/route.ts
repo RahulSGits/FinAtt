@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     // RLS already scopes these reads to the caller, so an employee cannot pull
     // the roster even if they claim role: 'hr' in the request body.
     let contextData: unknown = {}
-    if (role === 'hr') {
+    if (role === 'hr' || role === 'admin') {
       const { data: employees } = await supabase
         .from('employees')
         .select('full_name, department, designation, status')

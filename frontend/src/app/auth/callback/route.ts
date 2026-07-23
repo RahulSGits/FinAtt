@@ -48,7 +48,7 @@ export async function GET(request: Request) {
  * that isn't a single-slash relative path falls back to the role's dashboard.
  */
 function safeNext(next: string | null, role: string): string {
-  const fallback = role === 'hr' ? '/hr' : '/employee'
+  const fallback = role === 'admin' ? '/admin' : role === 'hr' ? '/hr' : '/employee'
   if (!next) return fallback
   // Rejects absolute URLs ("https://evil.com") and protocol-relative ("//evil.com").
   if (!next.startsWith('/') || next.startsWith('//')) return fallback

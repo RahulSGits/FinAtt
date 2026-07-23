@@ -37,6 +37,7 @@ export default function DiagnosticsSection({
     loginTracking: string | null
     applyStep1: string | null
     applyStep2: string | null
+    demoRoles: string | null
   }
   diagnostics: DiagnosticsData
 }) {
@@ -99,6 +100,16 @@ export default function DiagnosticsSection({
                 path="supabase/APPLY_STEP_2.sql"
                 label="Copy step 2"
                 note="All remaining migrations in dependency order. Idempotent — safe on a partially-migrated database. Ends with a verification report."
+              />
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold">Step 3 — fix the demo accounts</p>
+              <SqlBlock
+                sql={sql.demoRoles}
+                path="supabase/seed_demo_roles.sql"
+                label="Copy demo roles"
+                note="Sets admin@demo.com → admin, hr@demo.com → hr, employee@demo.com → employee, repairs missing sign-in identities, and reports the result."
               />
             </div>
           </div>

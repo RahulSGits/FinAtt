@@ -53,7 +53,8 @@ async function readSetupSql() {
     read('APPLY_STEP_1.sql'),
     read('APPLY_STEP_2.sql'),
   ])
-  return { migration, repair, loginTracking, applyStep1, applyStep2 }
+  const demoRoles = await read('seed_demo_roles.sql')
+  return { migration, repair, loginTracking, applyStep1, applyStep2, demoRoles }
 }
 
 export default async function HrPage() {

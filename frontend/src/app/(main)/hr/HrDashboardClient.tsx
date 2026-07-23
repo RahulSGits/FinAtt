@@ -113,6 +113,7 @@ export default function HrDashboardClient({
     loginTracking: string | null
     applyStep1: string | null
     applyStep2: string | null
+    demoRoles: string | null
   }
   diagnostics: DiagnosticsData
 }) {

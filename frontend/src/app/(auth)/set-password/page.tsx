@@ -23,7 +23,9 @@ export default async function SetPasswordPage() {
 
   // Already set up — send them on rather than letting them reset by accident.
   if (profile?.password_created) {
-    redirect(profile.role === 'hr' ? '/hr' : '/employee')
+    redirect(
+      profile.role === 'admin' ? '/admin' : profile.role === 'hr' ? '/hr' : '/employee',
+    )
   }
 
   return (
