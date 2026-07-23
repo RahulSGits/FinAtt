@@ -18,7 +18,10 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$ROOT/frontend/.env.local"
-PROJECT_REF="hjbxxvqybbyswaejyhsy"
+# Derived from the project URL rather than hardcoded, so this repo carries no
+# reference to one particular Supabase project.
+PROJECT_REF="$(grep -E '^NEXT_PUBLIC_SUPABASE_URL=' "$ENV_FILE" 2>/dev/null \
+  | head -1 | sed -E 's|.*https://([a-z0-9]+)\.supabase\..*|\1|')"
 API="https://api.supabase.com/v1/projects/$PROJECT_REF/database/query"
 CHECK_ONLY=false
 [ "${1:-}" = "--check" ] && CHECK_ONLY=true
