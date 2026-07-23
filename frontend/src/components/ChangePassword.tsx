@@ -17,7 +17,11 @@ const MIN_PASSWORD_LENGTH = 8
 export default function ChangePassword({ allowed }: { allowed: boolean }) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [show, setShow] = useState(false)
+  // Independent per field: the eye sat only on the first box, so the confirm
+  // field silently followed it with no control of its own. Someone checking a
+  // typo in one should not have to reveal both.
+  const [showNew, setShowNew] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
@@ -39,6 +43,8 @@ export default function ChangePassword({ allowed }: { allowed: boolean }) {
       setDone(true)
       setPassword('')
       setConfirmPassword('')
+      setShowNew(false)
+      setShowConfirm(false)
     }
     setSaving(false)
   }
@@ -64,7 +70,7 @@ export default function ChangePassword({ allowed }: { allowed: boolean }) {
               <input
                 id="cp-password"
                 name="password"
-                type={show ? 'text' : 'password'}
+                type={showNew ? 'text' : 'password'}
                 required
                 autoComplete="new-password"
                 value={password}
@@ -75,11 +81,12 @@ export default function ChangePassword({ allowed }: { allowed: boolean }) {
               />
               <button
                 type="button"
-                onClick={() => setShow((v) => !v)}
-                aria-label={show ? 'Hide password' : 'Show password'}
+                onClick={() => setShowNew((v) => !v)}
+                aria-label={showNew ? 'Hide new password' : 'Show new password'}
+                aria-pressed={showNew}
                 className="icon-btn absolute right-1 top-1/2 -translate-y-1/2"
               >
-                {show ? <EyeOff size={16} /> : <Eye size={16} />}
+                {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
             <p
@@ -94,18 +101,29 @@ export default function ChangePassword({ allowed }: { allowed: boolean }) {
             <label className="label" htmlFor="cp-confirm">
               Confirm password
             </label>
-            <input
-              id="cp-confirm"
-              name="confirmPassword"
-              type={show ? 'text' : 'password'}
-              required
-              autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              aria-invalid={mismatch}
-              placeholder="••••••••"
-              className="field"
-            />
+            <div className="relative">
+              <input
+                id="cp-confirm"
+                name="confirmPassword"
+                type={showConfirm ? 'text' : 'password'}
+                required
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                aria-invalid={mismatch}
+                placeholder="••••••••"
+                className="field pr-11"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm((v) => !v)}
+                aria-label={showConfirm ? 'Hide confirmation' : 'Show confirmation'}
+                aria-pressed={showConfirm}
+                className="icon-btn absolute right-1 top-1/2 -translate-y-1/2"
+              >
+                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
             {mismatch && (
               <p role="alert" className="mt-1 text-xs" style={{ color: 'var(--danger)' }}>
                 Passwords do not match.
