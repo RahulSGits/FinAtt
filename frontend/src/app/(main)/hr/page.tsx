@@ -46,12 +46,14 @@ async function readSetupSql() {
       return null
     }
   }
-  const [migration, repair, loginTracking] = await Promise.all([
+  const [migration, repair, loginTracking, applyStep1, applyStep2] = await Promise.all([
     read('migrations/20260721000000_finatt_full_schema.sql'),
     read('repair_broken_logins.sql'),
     read('migrations/20260723000000_login_tracking.sql'),
+    read('APPLY_STEP_1.sql'),
+    read('APPLY_STEP_2.sql'),
   ])
-  return { migration, repair, loginTracking }
+  return { migration, repair, loginTracking, applyStep1, applyStep2 }
 }
 
 export default async function HrPage() {

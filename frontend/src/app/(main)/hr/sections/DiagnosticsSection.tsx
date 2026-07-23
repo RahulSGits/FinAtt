@@ -35,6 +35,8 @@ export default function DiagnosticsSection({
     migration: string | null
     repair: string | null
     loginTracking: string | null
+    applyStep1: string | null
+    applyStep2: string | null
   }
   diagnostics: DiagnosticsData
 }) {
@@ -68,6 +70,40 @@ export default function DiagnosticsSection({
       />
 
       <div className="grid gap-4">
+        <Panel
+          title="Bring the database up to date"
+          subtitle="Run these two, in order — everything else on this tab is optional"
+        >
+          <div className="space-y-4">
+            <Alert tone="info">
+              Step 1 must run <strong>on its own</strong> and finish before step 2.
+              PostgreSQL refuses to use a newly added role value in the same
+              transaction that created it, and the SQL editor runs a whole script as
+              one transaction.
+            </Alert>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold">Step 1 — add the admin role</p>
+              <SqlBlock
+                sql={sql.applyStep1}
+                path="supabase/APPLY_STEP_1.sql"
+                label="Copy step 1"
+                note="One line. Run it, wait for success, then do step 2."
+              />
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold">Step 2 — everything else</p>
+              <SqlBlock
+                sql={sql.applyStep2}
+                path="supabase/APPLY_STEP_2.sql"
+                label="Copy step 2"
+                note="All remaining migrations in dependency order. Idempotent — safe on a partially-migrated database. Ends with a verification report."
+              />
+            </div>
+          </div>
+        </Panel>
+
         <Panel
           title="Repair broken sign-ins"
           subtitle="For accounts that fail with “Database error querying schema”"

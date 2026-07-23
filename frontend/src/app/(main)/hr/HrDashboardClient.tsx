@@ -107,7 +107,13 @@ export default function HrDashboardClient({
   loginStats: LoginStatsRow[]
   recentLogins: RecentLogin[]
   statsUnavailable: boolean
-  setupSql: { migration: string | null; repair: string | null; loginTracking: string | null }
+  setupSql: {
+    migration: string | null
+    repair: string | null
+    loginTracking: string | null
+    applyStep1: string | null
+    applyStep2: string | null
+  }
   diagnostics: DiagnosticsData
 }) {
   const [active, setActive] = useState('overview')
