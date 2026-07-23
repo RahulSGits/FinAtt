@@ -1010,3 +1010,62 @@ export async function deleteEmployee(formData: FormData): Promise<ActionResult> 
   }
 }
 
+
+/**
+ * Edit a day's check-in / check-out times by hand.
+ *
+ * HR-only, and never exposed to the employee — the times are what payroll pays
+ * against, so a correction (forgotten check-out, a device with the wrong clock)
+ * has to be an authorised action. Writing check_in/check_out lets the DB
+ * trigger recompute worked minutes; `manual_override` is NOT set here, so the
+ * status still follows the corrected hours unless it was overridden separately.
+ */
+export async function editAttendanceTimes(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireRole('hr')
+    const supabase = await createClient()
+
+    const employeeId = String(formData.get('employeeId') ?? '')
+    const date = String(formData.get('date') ?? '')
+    const checkInTime = String(formData.get('checkIn') ?? '').trim()
+    const checkOutTime = String(formData.get('checkOut') ?? '').trim()
+
+    if (!employeeId || !date) return fail('Employee and date are both required.')
+
+    // The inputs are wall-clock `HH:MM` on the record's own date. Compose a full
+    // timestamp so the stored value stays on the right day.
+    const compose = (time: string): string | null => {
+      if (!time) return null
+      if (!/^\d{2}:\d{2}$/.test(time)) return null
+      // Interpreted in the server's local zone, matching how times are shown.
+      const d = new Date(`${date}T${time}:00`)
+      return Number.isNaN(d.getTime()) ? null : d.toISOString()
+    }
+
+    const checkIn = compose(checkInTime)
+    const checkOut = compose(checkOutTime)
+
+    if (checkInTime && !checkIn) return fail('Check-in time must be HH:MM.')
+    if (checkOutTime && !checkOut) return fail('Check-out time must be HH:MM.')
+    if (checkIn && checkOut && new Date(checkOut) <= new Date(checkIn)) {
+      return fail('Check-out must be after check-in.')
+    }
+
+    const { error } = await supabase.from('attendance').upsert(
+      {
+        employee_id: employeeId,
+        date,
+        check_in: checkIn,
+        check_out: checkOut,
+      },
+      { onConflict: 'employee_id,date' },
+    )
+
+    if (error) return fail(error.message)
+
+    refresh()
+    return { ok: true }
+  } catch (err) {
+    return toResult(err)
+  }
+}
